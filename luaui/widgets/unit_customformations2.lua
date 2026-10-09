@@ -672,7 +672,7 @@ function widget:MouseRelease(mx, my, mButton)
 		
 		-- Directly giving speed order appears to work perfectly, including with shifted orders ...
 		-- ... But other widgets CMD.INSERT the speed order into the front (Posn 1) of the queue instead (which doesn't work with shifted orders)
-		if usingCmd ~= CMD.ATTACK and usingCmd ~= CMD.UNLOAD then --hack to fix bomber line attack etc.
+		if CMD_SET_WANTED_MAX_SPEED and usingCmd ~= CMD.ATTACK and usingCmd ~= CMD.UNLOAD then --hack to fix bomber line attack etc.
 		  local speedOpts = GetCmdOpts(alt, ctrl, meta, shift, true)
 		  GiveNotifyingOrder(CMD_SET_WANTED_MAX_SPEED, {wantedSpeed / 30}, speedOpts)
 		end
