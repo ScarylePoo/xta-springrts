@@ -165,10 +165,27 @@ function widget:IsAbove(mx, my)
 	return WG.Slate == S and #rows > 0 and S.Inside(mx, my, x1, y1, x2, y2) or false
 end
 
-function widget:GetTooltip()
+local function RowAt(my)
+	local i = floor((y2 - S.px(PAD_Y) - my) / S.px(rowH)) + 1
+	return rows[i]
+end
+
+local function CanShareWith(row)
+	if not row or not row.teamID or row.dead or Spring.GetSpectatingState() then return false end
+	local myTeam = Spring.GetMyTeamID()
+	return row.teamID ~= myTeam and Spring.AreTeamsAllied(row.teamID, myTeam)
+end
+
+function widget:GetTooltip(mx, my)
+	if CanShareWith(RowAt(my)) then return "Click to share resources or units with this ally" end
 	return "Bars show each ally's stored metal and energy"
 end
 
-function widget:MousePress(mx, my)
-	return WG.Slate == S and #rows > 0 and S.Inside(mx, my, x1, y1, x2, y2) or false
+function widget:MousePress(mx, my, button)
+	if WG.Slate ~= S or #rows == 0 or not S.Inside(mx, my, x1, y1, x2, y2) then return false end
+	local row = RowAt(my)
+	if button == 1 and CanShareWith(row) then
+		Spring.SendCommands("slate share " .. row.teamID)
+	end
+	return true
 end

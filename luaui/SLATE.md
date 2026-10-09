@@ -22,6 +22,8 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_widgetlist.lua` | Widget list on F11 |
 | `widgets/slate_econgraph.lua` | Income and demand over time, one chart per resource |
 | `widgets/slate_teamstats.lua` | Per-team statistics over the game; opens at game end |
+| `widgets/slate_keybinds.lua` | View and change key bindings; changes are saved and re-applied |
+| `widgets/slate_share.lua` | Give resources or selected units to an ally |
 | `configs/slate_theme.lua` | Every colour, opacity and size |
 | `configs/slate_game.lua` | Everything specific to the game |
 | `fonts/Saira_SemiCondensed-SemiBold.ttf` | UI font (SIL Open Font License) |
@@ -47,6 +49,8 @@ has one and is skipped otherwise.
 | `/slate widgets` | Open the widget list (also F11) |
 | `/slate economy` | Open the economy graph |
 | `/slate stats` | Open team statistics |
+| `/slate keys` | Open key bindings |
+| `/slate share` | Open the share window (or click an ally in the players list) |
 | `/slate opacity 0.6` | Panel opacity, 0.1 to 1 |
 | `/slate blur` | Toggle blur behind panels |
 | `/slate wind` | Toggle the wind read-out |

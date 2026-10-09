@@ -85,6 +85,8 @@ return {
 		{ label = "Settings",        command = "slate settings" },
 		{ label = "Economy graph",   command = "slate economy" },
 		{ label = "Team statistics", command = "slate stats" },
+		{ label = "Share with ally", command = "slate share" },
+		{ label = "Key bindings",    command = "slate keys" },
 		{ label = "Widgets (F11)",   command = "slate widgets" },
 		{ label = "Pause",           command = "pause" },
 		{ label = "Quit",            command = "quitmenu" },
