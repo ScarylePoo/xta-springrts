@@ -96,7 +96,10 @@ local function Refresh()
 		local t = cmd.type
 		if not reallyHidden[cmd.id] and t ~= CMDTYPE.PREV and t ~= CMDTYPE.NEXT and not hidden[cmd.action or ""] then
 			if cmd.id < 0 then
-				if UnitDefs[-cmd.id] then builds[#builds + 1] = cmd end
+				if UnitDefs[-cmd.id] then
+					cmd.slateKey = HotKey(cmd.action)
+					builds[#builds + 1] = cmd
+				end
 			elseif t == CMDTYPE.ICON_MODE and cmd.params and #cmd.params > 1 then
 				states[#states + 1] = cmd
 			elseif (cmd.name and cmd.name ~= "") or (cmd.texture and cmd.texture ~= "") then
@@ -223,7 +226,7 @@ function widget:Shutdown()
 		S.Unregister(BUILD_ID) ; S.Unregister(ORDER_ID)
 		S.OffChange(BUILD_ID)
 		S.Unblur(BUILD_ID) ; S.Unblur(ORDER_ID)
-		if myHover then S.hover = nil end
+		if myHover then S.hover = nil ; S.hoverAction = nil end
 	end
 end
 
@@ -265,6 +268,8 @@ local function DrawArrow(x1, y1, x2, y2, label, kind, enabled, mx, my)
 	S.Text(label, (x1 + x2) * 0.5, (y1 + y2) * 0.5, 15, enabled and t.text or t.textDim, "cv")
 	if enabled then AddHit(x1, y1, x2, y2, kind) end
 end
+
+local hoverBuildCmd
 
 local function DrawBuildPanel(mx, my, activeID)
 	local t = S.theme
@@ -314,6 +319,7 @@ local function DrawBuildPanel(mx, my, activeID)
 	local first = (page - 1) * cols * rows
 	local picture = S.game.unitPicture
 	local hoverDef
+	hoverBuildCmd = nil
 
 	for i = 1, cols * rows do
 		local cmd = filtered[first + i]
@@ -353,8 +359,14 @@ local function DrawBuildPanel(mx, my, activeID)
 			S.Text(label, x2 - 2 - bw * 0.5, y2 - S.px(13), 11, { 0.08, 0.08, 0.07, 1 }, "c")
 		end
 
+		if cmd.slateKey then
+			local kw = S.TextWidth(cmd.slateKey, 11) + S.px(6)
+			S.Rect(x1 + 1, y2 - S.px(15), x1 + 1 + kw, y2 - 1, { 0, 0, 0, 0.60 }, 0)
+			S.Text(cmd.slateKey, x1 + 1 + kw * 0.5, y2 - S.px(12), 11, t.text, "c")
+		end
+
 		AddHit(x1, y1, x2, y2, "build", cmd)
-		if over then hoverDef = defID end
+		if over then hoverDef = defID ; hoverBuildCmd = cmd end
 	end
 	return hoverDef
 end
@@ -465,13 +477,19 @@ function widget:DrawScreen()
 		S.Unblur(ORDER_ID)
 	end
 
-	-- Tell the selection panel what the mouse is over.
+	-- Tell the selection panel what the mouse is over, and the key bindings
+	-- widget which button a Ctrl+Insert / Ctrl+Delete would apply to.
 	if hoverDef then
 		S.hover = { unitDefID = hoverDef } ; myHover = true
+		local ud = UnitDefs[hoverDef]
+		S.hoverAction = hoverBuildCmd and hoverBuildCmd.action ~= "" and
+			{ action = hoverBuildCmd.action, label = ud.translatedHumanName or ud.humanName or ud.name } or nil
 	elseif hoverCmd then
 		S.hover = { title = CleanName(hoverCmd.name), text = hoverCmd.tooltip } ; myHover = true
+		S.hoverAction = (hoverCmd.action and hoverCmd.action ~= "") and
+			{ action = hoverCmd.action, label = CleanName(hoverCmd.name) } or nil
 	elseif myHover then
-		S.hover = nil ; myHover = false
+		S.hover = nil ; S.hoverAction = nil ; myHover = false
 	end
 
 	S.Flush()

@@ -4,7 +4,7 @@
 function widget:GetInfo()
 	return {
 		name    = "Slate Key Bindings",
-		desc    = "See every key binding and change one by clicking it and pressing a key. Open it from the Menu or with /slate keys.",
+		desc    = "See every key binding and change one by clicking it and pressing a key (Menu, or /slate keys). Or hover a build or order button and press Ctrl+Insert to bind it, Ctrl+Delete to unbind.",
 		author  = "Scary le Poo",
 		date    = "2026-10-08",
 		license = "GNU GPL, v2 or later",
@@ -32,6 +32,12 @@ local closeRect
 local wx1, wy1, wx2, wy2
 local listening                     -- row id waiting for a key press
 local notice = ""
+
+-- Quick bind: hover a build or order button, Ctrl+Insert, press a key.
+local QUICK_BIND, QUICK_UNBIND = "insert", "delete"
+local STATUS_SECONDS = 4
+local quick                         -- { id, command, extra, label } waiting for a key press
+local status, statusTimer = nil, 0  -- result message shown for a few seconds
 
 -- Saved between games:
 --   changed[id]  = keyset the player chose ("" = no key)
@@ -243,8 +249,39 @@ end
 
 --------------------------------------------------------------------------------
 
+-- The small prompt used by quick bind, and the message that follows it.
+local function DrawQuick()
+	local t = S.theme
+	local title, line, color
+	if quick then
+		title = "Bind " .. quick.label
+		line = "Press a key. Backspace removes the key. Esc cancels."
+		color = t.warn
+	elseif status then
+		title, line, color = status.title, status.line, t.text
+	else
+		return
+	end
+	local x1, y1, x2, y2 = S.Box(nil, "c", "b", 0, S.theme.margin + 128 + S.theme.gap, 460, 72)
+	local p = t.panel
+	S.Rect(x1, y1, x2, y2, { p[1], p[2], p[3], max(t.opacity, 0.88) }, S.px(t.radius))
+	S.Outline(x1, y1, x2, y2, quick and t.warn or t.border, S.px(t.radius), 1)
+	S.Text(S.Fit(title, 16, x2 - x1 - S.px(28)), x1 + S.px(14), y2 - S.px(24), 16, color, "v")
+	S.Text(S.Fit(line, 13, x2 - x1 - S.px(28)), x1 + S.px(14), y1 + S.px(22), 13, t.textDim, "v")
+	S.Flush()
+end
+
+function widget:Update(dt)
+	if status then
+		statusTimer = statusTimer - dt
+		if statusTimer <= 0 then status = nil end
+	end
+end
+
 function widget:DrawScreen()
-	if not open or WG.Slate ~= S then return end
+	if WG.Slate ~= S then return end
+	if quick or status then DrawQuick() end
+	if not open then return end
 	local t = S.theme
 	local mx, my = Spring.GetMouseState()
 	hits = {}
@@ -331,7 +368,7 @@ function widget:DrawScreen()
 	if listening then
 		help = "Press the new key (with Ctrl, Alt or Shift if you like). Backspace removes the key. Esc cancels."
 	elseif help == "" then
-		help = "Click a key to change it. Changes are saved."
+		help = "Click a key to change it. In game: hover a build or order button and press Ctrl+Insert."
 	end
 	S.Text(S.Fit(help, 13, x2 - bw - x1 - S.px(12)), x1, fy, 13, listening and t.warn or t.textDim, "v")
 	S.Flush()
@@ -389,14 +426,77 @@ function widget:MouseWheel(up)
 	return true
 end
 
-function widget:KeyPress(key, mods)
+-- Name of the pressed key. The engine passes it as `label`; key codes above
+-- 2^24 (Insert, the arrows, F-keys) cannot be looked up reliably because Lua
+-- numbers here are single precision.
+local function KeyName(key, label)
+	if type(label) == "string" and label ~= "" then return label:lower() end
+	return (Spring.GetKeySymbol(key) or ""):lower()
+end
+
+local function SetStatus(title, line)
+	status, statusTimer = { title = title, line = line }, STATUS_SECONDS
+end
+
+local function KeysetFrom(mods, symbol)
+	return (mods.ctrl and "Ctrl+" or "") .. (mods.alt and "Alt+" or "")
+		.. (mods.shift and "Shift+" or "") .. (mods.meta and "Meta+" or "") .. symbol
+end
+
+-- Quick bind. Returns true when the key press was used.
+local function QuickKey(key, mods, label)
+	if WG.Slate ~= S then return false end
+	local symbol = KeyName(key, label)
+
+	if quick then
+		if symbol == "" or modifierKeys[symbol] then return true end
+		local target = quick
+		quick = nil
+		if symbol == "escape" or key == 27 then
+			SetStatus("Cancelled", target.label .. " was not changed.")
+		elseif mods.ctrl and (symbol == QUICK_BIND or symbol == QUICK_UNBIND) then
+			SetStatus("Reserved key", "Ctrl+" .. symbol .. " is used for quick bind itself.")
+		elseif symbol == "backspace" then
+			SetBinding(target, "")
+			SetStatus(target.label, "No longer has a key.")
+		else
+			local keyset = KeysetFrom(mods, symbol)
+			local others = OtherUsers(keyset, target.id)
+			SetBinding(target, keyset)
+			SetStatus(target.label .. " is now " .. Pretty(keyset),
+				(#others > 0) and ("Also used by: " .. table.concat(others, ", ")) or "Saved.")
+		end
+		if open then Rebuild() end
+		if S.Notify then S.Notify() end   -- build and order buttons show the new key
+		return true
+	end
+
+	if not mods.ctrl or (symbol ~= QUICK_BIND and symbol ~= QUICK_UNBIND) then return false end
+	local hovered = S.hoverAction
+	if not hovered then return false end
+	local command, extra = hovered.action:match("^(%S+)%s*(.*)$")
+	local target = { id = hovered.action, command = command or hovered.action, extra = extra or "", label = hovered.label or hovered.action }
+	if symbol == QUICK_BIND then
+		quick = target
+		status = nil
+	else
+		SetBinding(target, "")
+		SetStatus(target.label, "No longer has a key.")
+		if open then Rebuild() end
+		if S.Notify then S.Notify() end
+	end
+	return true
+end
+
+function widget:KeyPress(key, mods, isRepeat, label)
+	if QuickKey(key, mods, label) then return true end
 	if not open then return false end
 	if not listening then
 		if key == 27 then Close() ; return true end
 		return false
 	end
 
-	local symbol = (Spring.GetKeySymbol(key) or ""):lower()
+	local symbol = KeyName(key, label)
 	if symbol == "" or modifierKeys[symbol] then return true end   -- wait for the real key
 	local row
 	for i = 1, #rows do if rows[i].id == listening then row = rows[i] end end
@@ -410,8 +510,7 @@ function widget:KeyPress(key, mods)
 		SetBinding(row, "")
 		notice = row.id .. " no longer has a key."
 	else
-		local keyset = (mods.ctrl and "Ctrl+" or "") .. (mods.alt and "Alt+" or "")
-			.. (mods.shift and "Shift+" or "") .. (mods.meta and "Meta+" or "") .. symbol
+		local keyset = KeysetFrom(mods, symbol)
 		local others = OtherUsers(keyset, row.id)
 		SetBinding(row, keyset)
 		notice = row.id .. " is now " .. Pretty(keyset) .. "."
