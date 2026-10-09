@@ -2131,7 +2131,7 @@ function isUnitComplete(UnitID)
 end
 
 function GetSkill(playerID)
-	local customtable = select(10,Spring.GetPlayerInfo(playerID)) -- player custom table
+	local customtable = select(11,Spring.GetPlayerInfo(playerID)) -- player custom table
 	
 	if not customtable then return "N/A" end
 	

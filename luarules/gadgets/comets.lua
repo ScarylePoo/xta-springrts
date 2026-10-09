@@ -159,7 +159,7 @@ for _,teamID in pairs(GetTeamList) do
 end
 local randomUnits 				= true
 local FALLSPEED					= 60  -- 60 every 5th timeframe
-local timeDelayComet 			= tonumber(modOptions.time_delay_comet) * 30 * 60 or 30 * 60 + 1 -- 2.5 min
+local timeDelayComet 			= tonumber(modOptions.time_delay_comet) and tonumber(modOptions.time_delay_comet) * 30 * 60 or 30 * 60 + 1 -- 2.5 min
 local damage_radius				= tonumber(modOptions.max_radius_damage_comets) or 500
 local damage_value            	= tonumber(modOptions.max_damage_comets) or 500
 local randomize_number_of_comets= 100 -- how often number of comets in rain are randomized (higher is less ofthen)

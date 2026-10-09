@@ -113,7 +113,7 @@ local jumpCmdDesc = {
 }
 
 local ignore = {
-  [CMD.SET_WANTED_MAX_SPEED] = true,
+  [CMD.SET_WANTED_MAX_SPEED or 70] = true,
 }
 
 local accept = {

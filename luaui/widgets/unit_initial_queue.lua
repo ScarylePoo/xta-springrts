@@ -456,7 +456,7 @@ function widget:Initialize()
 		disablable["core_wind_generator"] = true
 	end
 	if not Spring.GetModOptions().space_mode or (Spring.GetModOptions().space_mode and Spring.GetModOptions().space_mode=="0") then
-		local map = Game.mapHumanName:lower()
+		local map = (Game.mapHumanName or Game.mapName):lower()
 		local disableAir = Game.windMin <= 1 and Game.windMax <= 4 or map:find("comet") or map:find("moon")
 		local disableHovers = disableAir
 		disableAir = disableAir or Game.windMin >= 30 or Game.windMax >= 35

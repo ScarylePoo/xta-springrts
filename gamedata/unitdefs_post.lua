@@ -80,7 +80,7 @@ end
 local disableWind = Game.windMax < 9.1
 local disableAir, disableHovers
 if not modOptions.space_mode or (modOptions.space_mode and modOptions.space_mode=="0") then
-	local map = Game.mapHumanName:lower()
+	local map = (Game.mapHumanName or Game.mapName):lower()
 	if Game.windMin <= 1 and Game.windMax <= 4 then
 		disableAir = true
 		disableHovers = true
@@ -502,3 +502,10 @@ else
 end
 end
 
+
+-- Recoil: the move class name "smallboat" fails to resolve on 2026.09.01; alias it
+for _, ud in pairs(UnitDefs) do
+	if type(ud.movementclass) == "string" and ud.movementclass:lower() == "smallboat" then
+		ud.movementclass = "BOATSMALL"
+	end
+end

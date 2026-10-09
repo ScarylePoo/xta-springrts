@@ -24,7 +24,7 @@ local SetUnitWeaponState = Spring.SetUnitWeaponState
 local DestroyUnit = Spring.DestroyUnit
 
 local COB_CRASHING = COB.CRASHING
-local COM_BLAST = WeaponDefNames['commanderexplosion'].id
+local COM_BLAST = (WeaponDefNames['commanderexplosion'] or WeaponDefNames['commander_blast'] or {}).id
 
 local crashable  = {}
 local crashing = {}

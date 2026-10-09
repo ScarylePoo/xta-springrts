@@ -933,7 +933,7 @@ function widget:DrawScreen()
 						as = 0
 						
 						local _,leaderID,_,isAI,_,allyID = Spring.GetTeamInfo(tID)
-						local leaderName,active,spec,team,allyteam,_,_,country,rank,customtable	= Spring.GetPlayerInfo(leaderID)
+						local leaderName,active,spec,team,allyteam,_,_,country,rank,_,customtable	= Spring.GetPlayerInfo(leaderID)
 						local skill = GetSkill(customtable) or 0
 						
 						local aiID, aiName, aiHostID, aiShortName = Spring.GetAIInfo(tID)

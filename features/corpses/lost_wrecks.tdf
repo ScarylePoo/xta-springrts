@@ -1392,7 +1392,7 @@
 	world=All Worlds;
 	description=Wreckage;
 	category=lost_corpses;
-	object=lost_archer_dead.3do;
+	object=Lost_otter_dead.3do;
 	footprintx=3;
 	footprintz=3;
 	height=20;
@@ -2606,7 +2606,7 @@
 	world=All Worlds;
 	description=Wreckage;
 	category=lost_corpses;
-	object=lost_shaman_dead;
+	object=Lost_tic_dead;
 	featuredead=lost_shaman_heap;
 	footprintx=2;
 	footprintz=2;
@@ -4360,7 +4360,7 @@
 	world=All Worlds;
 	description=Wreckage;
 	category=lost_corpses;
-	object=lost_underwater_fusion_reactor_dead;
+	object=lost_underwater_fusion_power_plant_dead;
 	featuredead=lost_underwater_fusion_reactor_heap;
 	footprintx=5;
 	footprintz=5;

@@ -213,7 +213,7 @@ function gadget:GameStart()
 			end
 		end
 
-		local teamOptions = select(7, spGetTeamInfo(teamID))
+		local teamOptions = select(8, spGetTeamInfo(teamID))
 		local m = teamOptions.startmetal  or modOptions.startmetal  or 1000
 		local e = teamOptions.startenergy or modOptions.startenergy or 1000
 		if (m and tonumber(m) ~= 0) then

@@ -61,7 +61,7 @@ end
 function gadget:Initialize()
 	disableWind = Game.windMax < breakEvenWind
 	if not modOptions.space_mode or (modOptions.space_mode and modOptions.space_mode=="0") then
-		local map = Game.mapHumanName:lower()
+		local map = (Game.mapHumanName or Game.mapName):lower()
 		if Game.windMin <= 1 and Game.windMax <= 4 then
 			disableAir = 1
 			disableHovers = true

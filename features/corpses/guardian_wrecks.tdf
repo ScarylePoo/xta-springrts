@@ -806,7 +806,7 @@
 	world=All Worlds;
 	description=Wreckage;
 	category=core_corpses;
-	object=guardian_moho_metal_maker_dead;
+	object=arm_moho_metal_maker_dead;
 	featuredead=guardian_moho_metal_maker_heap;
 	footprintx=4;
 	footprintz=4;

@@ -27,7 +27,7 @@ local moveDefs = {
 	-- NOTE: engine starts counting MoveDefs at 1, not 0
 	-- SHIPS
 	[1] = {
-		name = "SMALLBOAT",
+		name = "BOATSMALL",
 		footprintX = 2,
 		footprintZ = 3,
 		minWaterDepth = 5.0,
