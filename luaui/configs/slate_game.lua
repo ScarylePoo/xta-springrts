@@ -82,8 +82,11 @@ return {
 
 	-- Entries in the Menu dropdown. `command` goes to Spring.SendCommands.
 	menu = {
-		{ label = "Pause",       command = "pause" },
-		{ label = "Widget list", command = "luaui selector" },
-		{ label = "Quit",        command = "quitmenu" },
+		{ label = "Settings",        command = "slate settings" },
+		{ label = "Economy graph",   command = "slate economy" },
+		{ label = "Team statistics", command = "slate stats" },
+		{ label = "Widgets (F11)",   command = "slate widgets" },
+		{ label = "Pause",           command = "pause" },
+		{ label = "Quit",            command = "quitmenu" },
 	},
 }

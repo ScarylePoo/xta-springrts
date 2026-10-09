@@ -21,6 +21,22 @@ return {
 
 	font         = "Saira_SemiCondensed-SemiBold.ttf",
 
+	-- Colour tint. `tint` names one of the entries in `tints`; `tintStrength`
+	-- (0-1) is how far the panel glass, borders and accent lean towards it.
+	-- Players pick both in the settings screen.
+	tint         = "None",
+	tintStrength = 0.5,
+	tints = {
+		{ name = "None" },
+		{ name = "Blue",   color = { 0.20, 0.45, 0.95 } },
+		{ name = "Teal",   color = { 0.10, 0.70, 0.65 } },
+		{ name = "Green",  color = { 0.25, 0.72, 0.30 } },
+		{ name = "Amber",  color = { 0.95, 0.62, 0.15 } },
+		{ name = "Red",    color = { 0.90, 0.25, 0.22 } },
+		{ name = "Pink",   color = { 0.95, 0.40, 0.70 } },
+		{ name = "Purple", color = { 0.58, 0.36, 0.92 } },
+	},
+
 	panel        = { 0.050, 0.055, 0.063 },          -- body colour (alpha = opacity)
 	border       = { 1.00, 1.00, 1.00, 0.14 },
 	radius       = 8,
@@ -40,5 +56,11 @@ return {
 	buttonActive = { 1.00, 1.00, 1.00, 0.20 },
 	buttonOff    = { 0.00, 0.00, 0.00, 0.55 },        -- overlay on disabled buttons
 	track        = { 1.00, 1.00, 1.00, 0.10 },        -- empty part of a bar
+
+	-- Two-series charts (income against demand). Checked to stay distinct for
+	-- colour-blind players on a dark panel; team charts use team colours.
+	chartA       = { 0.239, 0.545, 0.910, 1.0 },
+	chartB       = { 0.851, 0.467, 0.184, 1.0 },
+	chartGrid    = { 1.00, 1.00, 1.00, 0.08 },
 	buttonRadius = 5,
 }

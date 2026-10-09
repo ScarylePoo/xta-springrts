@@ -630,7 +630,7 @@ end
 --------------------------------------------------------------------------------
 
 -- OFF by default until it has been seen working in a real game: turn on with
--- "/slate atlas on" and check the build menu. The previous, engine-API
+-- "/slatedraw atlas on" and check the build menu. The previous, engine-API
 -- implementation produced black icons in-game twice; this one shares none of
 -- that code path, but it earns default-on by being verified, not by argument.
 local atlasEnabled = false
@@ -649,9 +649,9 @@ local atlasQueue   = {}       -- request order
 local atlasPending = 0
 local atlasUsed    = 0        -- grid cells taken
 local atlasFailed  = {}       -- texName -> true, blit failed; never retry
-local atlasBlits   = 0        -- total successful blits, for /slate atlas
+local atlasBlits   = 0        -- total successful blits, for /slatedraw atlas
 local atlasErrors  = 0        -- reported failures; first few go to the console
-local atlasDebug   = false    -- /slate atlasdebug: draw the raw atlas
+local atlasDebug   = false    -- /slatedraw atlasdebug: draw the raw atlas
 
 AtlasError = function(what, err)
 	atlasErrors = atlasErrors + 1
@@ -1524,22 +1524,22 @@ end
 --------------------------------------------------------------------------------
 
 function widget:TextCommand(command)
-	if command == "slate debug" then
+	if command == "slatedraw debug" then
 		debugTint = not debugTint
 		spEcho("[Slate] debug tint " .. (debugTint and "on" or "off"))
 		return true
-	elseif command == "slate atlasdebug" then
+	elseif command == "slatedraw atlasdebug" then
 		atlasDebug = not atlasDebug
 		spEcho("[Slate] atlas debug view " .. (atlasDebug and "on" or "off"))
 		return true
-	elseif command == "slate atlas" or command == "slate atlas on"
-	    or command == "slate atlas off" then
-		if command == "slate atlas on" then
+	elseif command == "slatedraw atlas" or command == "slatedraw atlas on"
+	    or command == "slatedraw atlas off" then
+		if command == "slatedraw atlas on" then
 			atlasEnabled = true
 			atlasBroken  = false
 			atlasFailed  = {}
 			spEcho("[Slate] icon atlas enabled")
-		elseif command == "slate atlas off" then
+		elseif command == "slatedraw atlas off" then
 			atlasEnabled = false
 			DestroyAtlas()
 			atlasWanted  = {}
@@ -1553,7 +1553,7 @@ function widget:TextCommand(command)
 			atlasEnabled and "on" or "off", packed, pending, atlasUsed, ATLAS_SLOTS,
 			atlasErrors, broken and ", GIVEN UP" or ""))
 		return true
-	elseif command == "slate stats" then
+	elseif command == "slatedraw stats" then
 		debugStats = not debugStats
 		spEcho("[Slate] draw stats " .. (debugStats and "on" or "off"))
 		return true

@@ -76,10 +76,45 @@ local function LoadTable(file, fallback)
 	return result
 end
 
+-- Untinted copies of the colours a tint changes.
+local base
+
+local function TintColor(name)
+	local tints = S.theme.tints or {}
+	for i = 1, #tints do
+		if tints[i].name == name then return tints[i].color end
+	end
+end
+
+local function ApplyTint()
+	local t = S.theme
+	if not base then
+		base = {
+			panel  = { t.panel[1], t.panel[2], t.panel[3] },
+			border = { t.border[1], t.border[2], t.border[3], t.border[4] },
+			accent = { t.accent[1], t.accent[2], t.accent[3], t.accent[4] },
+		}
+	end
+	local c = TintColor(t.tint)
+	local s = c and min(1, max(0, t.tintStrength or 0)) or 0
+	c = c or { 0, 0, 0 }
+	for i = 1, 3 do
+		local light = c[i] * 0.55 + 0.45
+		-- the glass stays dark enough for text at any strength
+		t.panel[i]  = base.panel[i] * (1 - s) + c[i] * 0.38 * s
+		t.border[i] = base.border[i] * (1 - s) + light * s
+		t.accent[i] = base.accent[i] * (1 - s) + light * s
+	end
+end
+
 local function ApplySaved()
 	local t = S.theme
 	if type(saved.opacity) == "number" then t.opacity = min(1, max(0.1, saved.opacity)) end
 	if type(saved.blur) == "boolean" then t.blur = saved.blur end
+	if type(saved.scale) == "number" then t.scale = min(1.5, max(0.7, saved.scale)) end
+	if type(saved.tint) == "string" then t.tint = saved.tint end
+	if type(saved.tintStrength) == "number" then t.tintStrength = saved.tintStrength end
+	ApplyTint()
 	local addons = S.game.addons
 	if addons then
 		if type(saved.wind) == "boolean" then addons.wind = saved.wind end
@@ -105,7 +140,7 @@ local function LoadFont()
 	S.font = font
 end
 
-local function Rescale()
+local function RescaleNow()
 	vsx, vsy = spGetViewGeometry()
 	S.vsx, S.vsy = vsx, vsy
 	S.scale = (vsy / BASE_HEIGHT) * (S.theme.scale or 1)
@@ -320,6 +355,179 @@ function S.Short(v)
 end
 
 --------------------------------------------------------------------------------
+-- Settings: what the settings screen (or any widget) reads and writes.
+-- Keys: opacity, blur, scale, tint, tintStrength, wind, tidal.
+--------------------------------------------------------------------------------
+
+function S.Get(key)
+	local t = S.theme
+	if key == "wind" or key == "tidal" then
+		return (S.game.addons or {})[key] and true or false
+	end
+	return t[key]
+end
+
+local NotifyAll, Rescale   -- defined below
+
+function S.Set(key, value)
+	saved[key] = value
+	ApplySaved()
+	if key == "blur" and value and not WG["guishader_api"] then
+		widgetHandler:EnableWidget("GUI-Shader")
+	end
+	Rescale()
+	NotifyAll()
+end
+
+--------------------------------------------------------------------------------
+-- Windows: the frame shared by the settings screen, widget list and graphs.
+-- Draws a centred panel with a title and a close button, and returns the
+-- panel rectangle plus the close button rectangle.
+--------------------------------------------------------------------------------
+
+function S.Window(id, w, h, title, mx, my)
+	local t = S.theme
+	local pw, ph = min(S.px(w), vsx - 20), min(S.px(h), vsy - 20)
+	local x1, y1 = floor((vsx - pw) * 0.5), floor((vsy - ph) * 0.5)
+	local x2, y2 = x1 + pw, y1 + ph
+	local r = S.px(t.radius)
+	local p = t.panel
+	-- windows hold a lot of text, so they are never more see-through than this
+	S.Rect(x1, y1, x2, y2, { p[1], p[2], p[3], max(t.opacity, 0.88) }, r)
+	S.Outline(x1, y1, x2, y2, t.border, r, 1)
+	S.Blur(id, x1, y1, x2, y2)
+
+	local bar = S.px(44)
+	S.Text(title, x1 + S.px(18), y2 - bar * 0.5, 18, t.text, "v")
+	S.Rect(x1 + S.px(12), y2 - bar, x2 - S.px(12), y2 - bar + 1, t.border, 0)
+	local cs = S.px(28)
+	local cx2, cy2 = x2 - S.px(10), y2 - S.px(8)
+	local close = { cx2 - cs, cy2 - cs, cx2, cy2 }
+	S.Button(close[1], close[2], close[3], close[4], S.Inside(mx, my, close[1], close[2], close[3], close[4]) and "hover" or nil)
+	S.Text("X", (close[1] + close[3]) * 0.5, (close[2] + close[4]) * 0.5, 14, t.text, "cv")
+	return x1, y1, x2, y2 - bar, close
+end
+
+--------------------------------------------------------------------------------
+-- Line chart
+--
+-- series = { { label = "Income", color = {r,g,b,a}, points = { v1, v2, ... } }, ... }
+-- All series share one y axis starting at zero and the same number of points.
+-- opts.xLabel(i) -> string names point i (used for the axis ends and hover).
+-- opts.title is drawn above the plot. Hovering shows the values under the cursor.
+--------------------------------------------------------------------------------
+
+local function Polyline(points, width, color)
+	if #points < 4 then return end
+	if SG then
+		SG.LineStrip(points, width, color)
+	else
+		local verts = {}
+		for i = 1, #points - 1, 2 do verts[#verts + 1] = { v = { points[i], points[i + 1] } } end
+		glColor(color[1], color[2], color[3], color[4] or 1)
+		gl.LineWidth(width)
+		gl.Shape(GL.LINE_STRIP, verts)
+		gl.LineWidth(1)
+	end
+end
+
+function S.LineChart(x1, y1, x2, y2, series, opts, mx, my)
+	local t = S.theme
+	opts = opts or {}
+	local n = 0
+	local top = 0
+	for s = 1, #series do
+		local pts = series[s].points
+		n = max(n, #pts)
+		for i = 1, #pts do if pts[i] > top then top = pts[i] end end
+	end
+	if top <= 0 then top = 1 end
+
+	-- title and legend share the strip above the plot
+	local head = S.px(26)
+	local lx = x1
+	if opts.title then
+		S.Text(opts.title:upper(), x1, y2 - head * 0.5, 12, t.accent, "v")
+		lx = x1 + S.TextWidth(opts.title:upper(), 12) + S.px(18)
+	end
+	for s = 1, #series do
+		local e = series[s]
+		local sw = S.px(10)
+		local mid = y2 - head * 0.5
+		if lx + sw < x2 - S.px(40) then
+			S.Rect(lx, mid - S.px(2), lx + sw, mid + S.px(2), e.color, S.px(2))
+			local last = e.points[#e.points]
+			local label = e.label .. (last and ("  " .. S.Short(last)) or "")
+			S.Text(label, lx + sw + S.px(6), mid, 13, t.text, "v")
+			lx = lx + sw + S.px(6) + S.TextWidth(label, 13) + S.px(18)
+		end
+	end
+
+	local axisW = S.px(46)
+	local px1, px2 = x1 + axisW, x2
+	local py1, py2 = y1 + S.px(20), y2 - head - S.px(4)
+
+	-- recessive grid: baseline, middle, top
+	for g = 0, 2 do
+		local gy = floor(py1 + (py2 - py1) * g / 2)
+		S.Rect(px1, gy, px2, gy + 1, t.chartGrid, 0)
+		S.Text(S.Short(top * g / 2), px1 - S.px(8), gy, 11, t.textDim, "rv")
+	end
+	if n >= 1 and opts.xLabel then
+		S.Text(opts.xLabel(1), px1, y1 + S.px(6), 11, t.textDim, "v")
+		S.Text(opts.xLabel(n), px2, y1 + S.px(6), 11, t.textDim, "rv")
+	end
+	if n < 2 then
+		S.Text("Not enough data yet", (px1 + px2) * 0.5, (py1 + py2) * 0.5, 13, t.textDim, "cv")
+		return
+	end
+
+	local lineW = max(2, S.px(2))
+	for s = 1, #series do
+		local pts = series[s].points
+		local flat = {}
+		for i = 1, #pts do
+			flat[#flat + 1] = px1 + (px2 - px1) * (i - 1) / (n - 1)
+			flat[#flat + 1] = py1 + (py2 - py1) * (pts[i] / top)
+		end
+		Polyline(flat, lineW, series[s].color)
+	end
+
+	-- hover: crosshair, a dot on each line, and the values at that point
+	if mx and S.Inside(mx, my, px1, py1, px2, py2) then
+		local i = floor((mx - px1) / (px2 - px1) * (n - 1) + 0.5) + 1
+		local hx = floor(px1 + (px2 - px1) * (i - 1) / (n - 1))
+		S.Rect(hx, py1, hx + 1, py2, t.textDim, 0)
+		local rows = {}
+		local wide = opts.xLabel and S.TextWidth(opts.xLabel(i), 12) or 0
+		for s = 1, #series do
+			local v = series[s].points[i]
+			if v then
+				local hy = py1 + (py2 - py1) * (v / top)
+				local r = S.px(4)
+				S.Rect(hx - r, hy - r, hx + r, hy + r, series[s].color, r)
+				local label = series[s].label .. "  " .. S.Short(v)
+				rows[#rows + 1] = { color = series[s].color, label = label }
+				wide = max(wide, S.TextWidth(label, 13) + S.px(16))
+			end
+		end
+		local lh = S.px(18)
+		local bw, bh = wide + S.px(20), (#rows + 1) * lh + S.px(12)
+		local bx = (hx + S.px(26) + bw < px2) and (hx + S.px(26)) or (hx - S.px(14) - bw)
+		local by = min(py2 - bh, max(py1, my - bh * 0.5))
+		S.Rect(bx, by, bx + bw, by + bh, { 0.04, 0.045, 0.05, 0.95 }, S.px(5))
+		S.Outline(bx, by, bx + bw, by + bh, t.border, S.px(5), 1)
+		local ty = by + bh - S.px(6) - lh * 0.5
+		if opts.xLabel then S.Text(opts.xLabel(i), bx + S.px(10), ty, 12, t.textDim, "v") end
+		for r = 1, #rows do
+			ty = ty - lh
+			S.Rect(bx + S.px(10), ty - S.px(2), bx + S.px(20), ty + S.px(2), rows[r].color, S.px(2))
+			S.Text(rows[r].label, bx + S.px(26), ty, 13, t.text, "v")
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Shared hover state: the build/order menu writes it, the selection panel
 -- reads it. { unitDefID = n } or { title = "...", text = "..." } or nil.
 --------------------------------------------------------------------------------
@@ -332,7 +540,7 @@ local listeners = {}
 function S.OnChange(owner, fn) listeners[owner] = fn end
 function S.OffChange(owner) listeners[owner] = nil end
 
-local function NotifyAll()
+NotifyAll = function()
 	for owner, fn in pairs(listeners) do
 		local ok, err = pcall(fn)
 		if not ok then spEcho("[Slate] " .. tostring(owner) .. ": " .. tostring(err)) end
@@ -355,7 +563,7 @@ function widget:Initialize()
 		return
 	end
 	ApplySaved()
-	Rescale()
+	RescaleNow()
 
 	if S.theme.blur and not WG["guishader_api"] then
 		widgetHandler:EnableWidget("GUI-Shader")
@@ -376,7 +584,7 @@ end
 
 function widget:ViewResize()
 	if not S.theme then return end
-	Rescale()
+	RescaleNow()
 	NotifyAll()
 end
 
@@ -415,3 +623,5 @@ function widget:TextCommand(command)
 	NotifyAll()
 	return true
 end
+
+Rescale = RescaleNow

@@ -18,6 +18,10 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_chat.lua` | Recent chat and messages as outlined text |
 | `widgets/slate_topbar.lua` | Clock, speed, frame rate, Menu |
 | `widgets/slate_minimap.lua` | Frames and sizes the engine minimap |
+| `widgets/slate_settings.lua` | Settings window: interface look (opacity, blur, colour tint, size), graphics, sound |
+| `widgets/slate_widgetlist.lua` | Widget list on F11 |
+| `widgets/slate_econgraph.lua` | Income and demand over time, one chart per resource |
+| `widgets/slate_teamstats.lua` | Per-team statistics over the game; opens at game end |
 | `configs/slate_theme.lua` | Every colour, opacity and size |
 | `configs/slate_game.lua` | Everything specific to the game |
 | `fonts/Saira_SemiCondensed-SemiBold.ttf` | UI font (SIL Open Font License) |
@@ -39,6 +43,10 @@ has one and is skipped otherwise.
 
 | Command | Effect |
 |---|---|
+| `/slate settings` | Open the settings window (also in the Menu) |
+| `/slate widgets` | Open the widget list (also F11) |
+| `/slate economy` | Open the economy graph |
+| `/slate stats` | Open team statistics |
 | `/slate opacity 0.6` | Panel opacity, 0.1 to 1 |
 | `/slate blur` | Toggle blur behind panels |
 | `/slate wind` | Toggle the wind read-out |
@@ -46,4 +54,5 @@ has one and is skipped otherwise.
 | `/resetlayout` | Put every panel back in its default place |
 | Ctrl+F11 | Tweak mode: drag panels, right-click one to reset it |
 
-These choices are saved per player.
+These choices are saved per player. Colour tints are listed in
+`slate_theme.lua` (`tints`); add or change entries there.
