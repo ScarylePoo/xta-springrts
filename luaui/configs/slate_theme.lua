@@ -57,6 +57,18 @@ return {
 	buttonOff    = { 0.00, 0.00, 0.00, 0.55 },        -- overlay on disabled buttons
 	track        = { 1.00, 1.00, 1.00, 0.10 },        -- empty part of a bar
 
+	-- Chat: the body colour per channel. Names take their team colour;
+	-- spectators, who have none, use spectatorName.
+	chat = {
+		public        = { 1.00, 1.00, 1.00, 1 },
+		ally          = { 0.45, 1.00, 0.50, 1 },
+		whisper       = { 1.00, 0.50, 0.50, 1 },
+		spectator     = { 1.00, 0.95, 0.40, 1 },
+		event         = { 0.55, 0.82, 1.00, 1 },   -- speed changes, pause
+		system        = { 0.75, 0.75, 0.75, 1 },   -- engine console output
+		spectatorName = { 0.85, 0.85, 0.85, 1 },
+	},
+
 	-- Two-series charts (income against demand). Checked to stay distinct for
 	-- colour-blind players on a dark panel; team charts use team colours.
 	chartA       = { 0.239, 0.545, 0.910, 1.0 },

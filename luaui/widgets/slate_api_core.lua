@@ -235,6 +235,8 @@ function S.Text(str, x, y, size, color, opts)
 	if not font or not str then return end
 	color = color or S.theme.text
 	font:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+	-- an outline has its own colour; fade it with the text
+	if opts and opts:find("o", 1, true) then font:SetOutlineColor(0, 0, 0, color[4] or 1) end
 	font:Print(str, floor(x), floor(y), max(8, size * S.scale), opts or "")
 end
 
@@ -533,6 +535,22 @@ end
 --------------------------------------------------------------------------------
 
 S.hover = nil
+
+--------------------------------------------------------------------------------
+-- Panel hints. A panel registers a function (mx, my) -> title, text that
+-- answers only while the mouse is over it; the selection panel shows the
+-- answer. (The engine tooltip is switched off, so hints have to travel here.)
+--------------------------------------------------------------------------------
+
+local tipProviders = {}
+function S.SetTip(owner, fn) tipProviders[owner] = fn end
+
+function S.TipAt(mx, my)
+	for _, fn in pairs(tipProviders) do
+		local ok, title, text = pcall(fn, mx, my)
+		if ok and title then return title, text end
+	end
+end
 
 -- Panels call this from ViewResize/Initialize handlers they register here, so
 -- one resolution or theme change rebuilds every panel's geometry.

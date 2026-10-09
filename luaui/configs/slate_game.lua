@@ -80,12 +80,17 @@ return {
 		end },
 	},
 
+	-- Sounds for incoming chat by channel (public, ally, spectator, whisper),
+	-- as names for Spring.PlaySoundFile. Leave nil for silence.
+	chatSounds = nil,
+
 	-- Entries in the Menu dropdown. `command` goes to Spring.SendCommands.
 	menu = {
 		{ label = "Settings",        command = "slate settings" },
 		{ label = "Economy graph",   command = "slate economy" },
 		{ label = "Team statistics", command = "slate stats" },
 		{ label = "Share with ally", command = "slate share" },
+		{ label = "Chat log",        command = "slate log" },
 		{ label = "Key bindings",    command = "slate keys" },
 		{ label = "Widgets (F11)",   command = "slate widgets" },
 		{ label = "Pause",           command = "pause" },

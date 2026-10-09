@@ -122,6 +122,13 @@ local function Decide()
 		return { kind = "text", title = hover.title or "", text = hover.text or "" }
 	end
 
+	-- a hint from whichever Slate panel the mouse is over
+	local mx, my = spGetMouseState()
+	local tipTitle, tipText = S.TipAt(mx, my)
+	if tipTitle then
+		return { kind = "text", title = tipTitle, text = tipText or "" }
+	end
+
 	local sel = spGetSelectedUnits() or {}
 	if #sel == 1 then
 		return UnitView(sel[1], spGetUnitDefID(sel[1]))
@@ -146,7 +153,6 @@ local function Decide()
 	end
 
 	-- Nothing selected: describe what the cursor is on, if anything.
-	local mx, my = spGetMouseState()
 	local what, id = spTraceScreenRay(mx, my)
 	if what == "unit" then
 		local defID = spGetUnitDefID(id)

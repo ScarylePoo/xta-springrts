@@ -15,7 +15,8 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_commands.lua` | Build grid (filters, paging, queue counts) and order/state buttons |
 | `widgets/slate_selection.lua` | Selected unit or group, unit under cursor, build/order descriptions |
 | `widgets/slate_playerslist.lua` | Players by team with resource levels and ping |
-| `widgets/slate_chat.lua` | Recent chat and messages as outlined text |
+| `widgets/slate_chat.lua` | On-screen chat with team-coloured names and a colour per channel; console output is kept out |
+| `widgets/slate_chatlog.lua` | Scrollback window with Chat / Console / All tabs |
 | `widgets/slate_topbar.lua` | Clock, speed, frame rate, Menu |
 | `widgets/slate_minimap.lua` | Pins the engine minimap top-left, sized to the map, and frames it (not draggable) |
 | `widgets/slate_settings.lua` | Settings window: interface look (opacity, blur, colour tint, size), graphics, sound |
@@ -49,6 +50,7 @@ has one and is skipped otherwise.
 | `/slate widgets` | Open the widget list (also F11) |
 | `/slate economy` | Open the economy graph |
 | `/slate stats` | Open team statistics |
+| `/slate log` | Open the chat log |
 | `/slate keys` | Open key bindings |
 | Ctrl+Insert | While hovering a build or order button: bind it to the next key pressed |
 | Ctrl+Delete | While hovering a build or order button: remove its key |

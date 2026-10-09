@@ -101,11 +101,24 @@ function widget:Initialize()
 	S.Register(ADDON_ID, "Wind and tidal", Layout)
 	S.OnChange(ID, Layout)
 	Layout()
+	S.SetTip(ID, function(mx, my)
+		if not x1 then return nil end
+		local col = ColumnAt(mx, my)
+		if col then
+			return col.res.label .. " share level",
+				"Drag the marker along the bar. When your storage is fuller than the marker, the excess goes to your allies."
+		elseif S.Inside(mx, my, x1, y1, x2, y2) then
+			return "Resources", "Stored and storage on the left. On the right, income (+) and what your builders are asking for (-), per second."
+		elseif ax1 and S.Inside(mx, my, ax1, ay1, ax2, ay2) then
+			return "Wind and tide", "Wind changes constantly within the range shown for this map; wind generators produce in step with it. Tidal strength is fixed for the map."
+		end
+	end)
 end
 
 function widget:Shutdown()
 	Spring.SendCommands("resbar 1")
 	if S then
+		S.SetTip(ID, nil)
 		S.Unregister(ID) ; S.Unregister(ADDON_ID)
 		S.OffChange(ID)
 		S.Unblur(ID) ; S.Unblur(ADDON_ID)

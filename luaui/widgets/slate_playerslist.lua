@@ -94,6 +94,7 @@ function widget:Initialize()
 	Spring.SendCommands("info 0")
 	S.Register(ID, "Players", Layout)
 	S.OnChange(ID, Layout)
+	S.SetTip(ID, Tip)
 	Rebuild()
 end
 
@@ -174,6 +175,15 @@ local function CanShareWith(row)
 	if not row or not row.teamID or row.dead or Spring.GetSpectatingState() then return false end
 	local myTeam = Spring.GetMyTeamID()
 	return row.teamID ~= myTeam and Spring.AreTeamsAllied(row.teamID, myTeam)
+end
+
+local function Tip(mx, my)
+	if not x1 or #rows == 0 or not S.Inside(mx, my, x1, y1, x2, y2) then return nil end
+	local row = RowAt(my)
+	if CanShareWith(row) then
+		return row.name, "Click to give this ally resources or your selected units."
+	end
+	return "Players", "The bars show stored metal and energy. They are only visible for your allies, or for everyone when you are spectating."
 end
 
 function widget:GetTooltip(mx, my)
