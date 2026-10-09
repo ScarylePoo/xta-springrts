@@ -39,10 +39,25 @@ local STATUS_SECONDS = 4
 local quick                         -- { id, command, extra, label } waiting for a key press
 local status, statusTimer = nil, 0  -- result message shown for a few seconds
 
--- Saved between games:
---   changed[id]  = keyset the player chose ("" = no key)
---   original[id] = { keysets the action had before the first change }
-local changed, original = {}, {}
+-- WHERE BINDINGS LIVE (the same scheme as Splinter Faction)
+--
+--   1. the engine's defaults and the player's own uikeys.txt   - never touched
+--   2. <game>_keys.txt inside the game archive (optional)      - the game's defaults
+--   3. <game>_uikeys.txt in the player's Recoil folder         - changes made here
+--
+-- Each later file is loaded on top of the earlier ones with "keyload". Because
+-- file 3 is named after the game, several games on one install each keep
+-- their own changes and never see each other's.
+--
+-- File 3 has exactly one writer: this widget. It holds plain "bind" and
+-- "unbind" lines in the order they were made, so it can also be edited by hand.
+local shortName = (Game.gameShortName or Game.modShortName or "game"):lower():gsub("[^%w_]", "")
+local GAME_KEYS_FILE = "luaui/configs/" .. shortName .. "_keys.txt"
+local USER_KEYS_FILE = shortName .. "_uikeys.txt"
+
+local edits = {}                    -- { op = "bind"|"unbind", keyset = , action = } in file order
+local editedAction = {}             -- action -> true, for the Changed tab
+local filesApplied = false
 
 --------------------------------------------------------------------------------
 -- Sorting actions into tabs
@@ -108,7 +123,7 @@ local function Rebuild()
 		end
 	end
 	-- actions the player cleared no longer appear in the engine's list
-	for id, keyset in pairs(changed) do
+	for id in pairs(editedAction) do
 		if not byID[id] then
 			local command, extra = id:match("^(%S+)%s*(.*)$")
 			local row = { id = id, command = command or id, extra = extra or "", keys = {} }
@@ -150,36 +165,131 @@ local function Action(row)
 	return (row.extra ~= "") and (row.command .. " " .. row.extra) or row.command
 end
 
--- Replace every key on this action with `keyset` ("" removes them all).
-local function SetBinding(row, keyset)
-	local current = CurrentKeys(row.command, row.extra)
-	if not original[row.id] then original[row.id] = current end
-	for i = 1, #current do
-		Spring.SendCommands("unbind " .. current[i] .. " " .. Action(row))
-	end
-	if keyset ~= "" then
-		Spring.SendCommands("bind " .. keyset .. " " .. Action(row))
-	end
-	changed[row.id] = keyset
+--------------------------------------------------------------------------------
+-- The per-game file
+--------------------------------------------------------------------------------
+
+local FILE_HEADER = table.concat({
+	"//",
+	"//  Key binding changes for " .. (Game.gameName or shortName),
+	"//  Written by the Slate Key Bindings widget: changes made in game land here.",
+	"//",
+	"//  Loaded after uikeys.txt and after " .. GAME_KEYS_FILE .. " (if the game has one),",
+	"//  so unbind lines can remove a default and bind lines can replace it.",
+	"//  Hand edits are kept as long as they are plain bind / unbind lines.",
+	"//",
+	"",
+	"",
+}, "\n")
+
+local function Trim(str) return (str:gsub("^%s+", ""):gsub("%s+$", "")) end
+
+local function ReindexEdits()
+	editedAction = {}
+	for i = 1, #edits do editedAction[edits[i].action] = true end
 end
 
-local function ResetRow(row)
+local function LoadEdits()
+	edits = {}
+	local f = io.open(USER_KEYS_FILE, "r")
+	if f then
+		for raw in f:lines() do
+			local body = Trim((raw:gsub("\r", ""):gsub("//.*$", "")))
+			local verb, keyset, action = body:match("^(%a+)%s+(%S+)%s+(.+)$")
+			if verb then
+				verb = verb:lower()
+				if verb == "bind" or verb == "unbind" then
+					edits[#edits + 1] = { op = verb, keyset = keyset, action = Trim(action) }
+				end
+			end
+		end
+		f:close()
+	end
+	ReindexEdits()
+end
+
+local function SaveEdits()
+	local f, err = io.open(USER_KEYS_FILE, "w")
+	if not f then
+		notice = "Could not write " .. USER_KEYS_FILE .. (err and (": " .. tostring(err)) or "")
+		return false
+	end
+	f:write(FILE_HEADER)
+	for i = 1, #edits do
+		f:write(string.format("%-7s %-20s %s\n", edits[i].op, edits[i].keyset, edits[i].action))
+	end
+	f:close()
+	return true
+end
+
+-- Record one change and apply it now. A change that reverses an earlier one
+-- (bind then unbind of the same key and action, or the other way round)
+-- cancels it, so the file only ever holds what differs from the defaults.
+local function AddEdit(op, keyset, action)
+	Spring.SendCommands(op .. " " .. keyset .. " " .. action)
+	local cancelled = false
+	for i = #edits, 1, -1 do
+		if edits[i].keyset:lower() == keyset:lower() and edits[i].action == action then
+			if edits[i].op ~= op then cancelled = true end
+			table.remove(edits, i)
+		end
+	end
+	if not cancelled then
+		edits[#edits + 1] = { op = op, keyset = keyset, action = action }
+	end
+end
+
+-- Load the game's defaults and then the player's changes on top of whatever
+-- the engine already has.
+local function ApplyFiles()
+	if VFS.FileExists(GAME_KEYS_FILE) then
+		Spring.SendCommands("keyload " .. GAME_KEYS_FILE)
+	end
+	local f = io.open(USER_KEYS_FILE, "r")
+	if f then
+		f:close()
+		Spring.SendCommands("keyload " .. USER_KEYS_FILE)
+	end
+	filesApplied = true
+end
+
+-- Replace every key on this action with `keyset` ("" removes them all).
+local function SetBinding(row, keyset)
+	local action = Action(row)
 	local current = CurrentKeys(row.command, row.extra)
 	for i = 1, #current do
-		Spring.SendCommands("unbind " .. current[i] .. " " .. Action(row))
+		AddEdit("unbind", current[i], action)
 	end
-	local keys = original[row.id] or {}
-	for i = 1, #keys do
-		Spring.SendCommands("bind " .. keys[i] .. " " .. Action(row))
+	if keyset ~= "" then
+		AddEdit("bind", keyset, action)
 	end
-	changed[row.id], original[row.id] = nil, nil
+	ReindexEdits()
+	SaveEdits()
+end
+
+-- Undo this action's changes by reversing them, newest first, without
+-- reloading every key in the game.
+local function ResetRow(row)
+	local action = Action(row)
+	for i = #edits, 1, -1 do
+		local e = edits[i]
+		if e.action == action then
+			Spring.SendCommands(((e.op == "bind") and "unbind " or "bind ") .. e.keyset .. " " .. e.action)
+			table.remove(edits, i)
+		end
+	end
+	ReindexEdits()
+	SaveEdits()
 end
 
 local function ResetAll()
-	for id in pairs(changed) do
-		local command, extra = id:match("^(%S+)%s*(.*)$")
-		ResetRow({ id = id, command = command or id, extra = extra or "" })
+	for i = #edits, 1, -1 do
+		local e = edits[i]
+		Spring.SendCommands(((e.op == "bind") and "unbind " or "bind ") .. e.keyset .. " " .. e.action)
 	end
+	edits = {}
+	ReindexEdits()
+	SaveEdits()
 	notice = "All key bindings are back to the game's defaults."
 end
 
@@ -213,29 +323,11 @@ function widget:Initialize()
 		widgetHandler:RemoveWidget()
 		return
 	end
-	-- put the player's saved changes back on top of the game's defaults
-	for id, keyset in pairs(changed) do
-		local command, extra = id:match("^(%S+)%s*(.*)$")
-		local row = { id = id, command = command or id, extra = extra or "" }
-		local keep = original[id]
-		SetBinding(row, keyset)
-		original[id] = keep or original[id]
-	end
+	LoadEdits()
 end
 
 function widget:Shutdown()
 	if S then S.Unblur(ID) end
-end
-
-function widget:GetConfigData()
-	return { changed = changed, original = original }
-end
-
-function widget:SetConfigData(data)
-	if type(data) == "table" then
-		changed = type(data.changed) == "table" and data.changed or {}
-		original = type(data.original) == "table" and data.original or {}
-	end
 end
 
 function widget:TextCommand(command)
@@ -272,6 +364,8 @@ local function DrawQuick()
 end
 
 function widget:Update(dt)
+	-- once, after every widget has loaded and made its own bindings
+	if not filesApplied and WG.Slate == S then ApplyFiles() end
 	if status then
 		statusTimer = statusTimer - dt
 		if statusTimer <= 0 then status = nil end

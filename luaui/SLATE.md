@@ -22,7 +22,7 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_widgetlist.lua` | Widget list on F11 |
 | `widgets/slate_econgraph.lua` | Income and demand over time, one chart per resource |
 | `widgets/slate_teamstats.lua` | Per-team statistics over the game; opens at game end |
-| `widgets/slate_keybinds.lua` | View and change key bindings; changes are saved and re-applied |
+| `widgets/slate_keybinds.lua` | View and change key bindings; changes go to a per-game file (see below) |
 | `widgets/slate_share.lua` | Give resources or selected units to an ally |
 | `configs/slate_theme.lua` | Every colour, opacity and size |
 | `configs/slate_game.lua` | Everything specific to the game |
@@ -62,3 +62,14 @@ has one and is skipped otherwise.
 
 These choices are saved per player. Colour tints are listed in
 `slate_theme.lua` (`tints`); add or change entries there.
+
+## Key binding files
+
+Slate never writes to the player's `uikeys.txt`. Bindings are layered:
+
+1. the engine defaults and the player's own `uikeys.txt`;
+2. `luaui/configs/<game>_keys.txt` in the game archive, if the game ships one;
+3. `<game>_uikeys.txt` in the player's Recoil folder, holding changes made in game.
+
+`<game>` is the game's short name in lower case (`xta_uikeys.txt` here), so
+several games on one install keep separate changes.
