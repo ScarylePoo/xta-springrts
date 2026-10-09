@@ -20,7 +20,7 @@ local BUILD_ID, ORDER_ID = "buildmenu", "ordermenu"
 local PANEL_W        = 300
 local BUILD_H        = 452
 local ORDER_H        = 264
-local MINIMAP_H      = 300      -- the build menu sits under the minimap frame
+local MINIMAP_H      = 300      -- assumed minimap frame height until Slate Minimap reports the real one
 local PAD            = 10
 local GAP            = 6
 local HEADER_H       = 28
@@ -195,7 +195,11 @@ end
 
 local function Layout()
 	local t = S.theme
-	bx1, by1, bx2, by2 = S.Box(BUILD_ID, "l", "t", t.margin, t.margin + MINIMAP_H + t.gap, PANEL_W, BUILD_H)
+	-- the build menu sits directly under the minimap frame, wherever the
+	-- engine actually put it
+	local below = t.margin + MINIMAP_H
+	if S.minimap then below = (S.vsy - S.minimap.y1) / S.scale end
+	bx1, by1, bx2, by2 = S.Box(BUILD_ID, "l", "t", t.margin, below + t.gap, PANEL_W, BUILD_H)
 	ox1, oy1, ox2, oy2 = S.Box(ORDER_ID, "l", "b", t.margin, t.margin, PANEL_W, ORDER_H)
 end
 

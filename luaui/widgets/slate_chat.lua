@@ -16,7 +16,7 @@ end
 local ID = "chat"
 local WIDTH, HEIGHT = 520, 170      -- design pixels
 local TOP_OFFSET    = 96            -- below the resource bar
-local LEFT_OFFSET   = 332           -- right of the minimap frame
+local LEFT_OFFSET   = 332           -- right of the minimap frame, until its real size is known
 local LINE_H        = 20
 local TEXT_SIZE     = 15
 local MAX_LINES     = 8
@@ -36,7 +36,10 @@ local nameTimer = 10
 --------------------------------------------------------------------------------
 
 local function Layout()
-	x1, y1, x2, y2 = S.Box(ID, "l", "t", LEFT_OFFSET, TOP_OFFSET, WIDTH, HEIGHT)
+	-- start to the right of the minimap frame, which varies with the map
+	local left = LEFT_OFFSET
+	if S.minimap then left = S.minimap.x2 / S.scale + S.theme.gap end
+	x1, y1, x2, y2 = S.Box(ID, "l", "t", left, TOP_OFFSET, WIDTH, HEIGHT)
 	-- keep the engine's chat entry line just under the messages
 	Spring.SendCommands(string.format("inputtextgeo %.3f %.3f 0.02 0.028",
 		x1 / S.vsx, max(0.05, (y1 - S.px(34)) / S.vsy)))

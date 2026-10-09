@@ -4,50 +4,78 @@
 function widget:GetInfo()
 	return {
 		name    = "Slate Minimap",
-		desc    = "Frames the engine minimap in a Slate panel and keeps it sized to the map's shape.",
+		desc    = "Pins the engine minimap to the top-left corner at a size that follows the map's shape, and draws a frame around wherever the engine actually put it.",
 		author  = "Scary le Poo",
 		date    = "2026-10-08",
 		license = "GNU GPL, v2 or later",
-		layer   = 6,
+		layer   = 1000,
 		enabled = true,
 	}
 end
 
-local ID = "minimap"
-local SIZE  = 300                   -- design pixels, outer frame
-local INSET = 6
+--------------------------------------------------------------------------------
+-- HOW THIS WORKS (same approach as Splinter Faction's "Minimap Top Left")
+--
+-- The engine owns the minimap: it draws it, takes its mouse input and decides
+-- its final rectangle. A widget can only ask for a geometry, and the engine
+-- may override that request during the first frames of a game. So this widget
+-- does not treat the minimap as a panel:
+--
+--   * it is not registered with Slate Layout and cannot be dragged;
+--   * it asks for the geometry repeatedly for the first frames, then stops;
+--   * the frame is drawn around Spring.GetMiniMapGeometry() - what the engine
+--     really did - never around what was asked for.
+--
+-- Height is fixed and width follows the map, so the map is never letterboxed.
+-- Very wide maps are capped in width and lose height instead.
+--
+-- Other panels that need to sit beside the minimap read WG.Slate.minimap,
+-- { x1, y1, x2, y2 } of the frame in screen pixels.
+--------------------------------------------------------------------------------
 
+-- design pixels (1080-high screen)
+local MAP_HEIGHT    = 288
+local MAX_MAP_WIDTH = 460
+local FRAME         = 6             -- glass band around the map
+local REAPPLY_FRAMES = 30
+
+local spSendCommands       = Spring.SendCommands
+local spGetMiniMapGeometry = Spring.GetMiniMapGeometry
 local floor = math.floor
 
 local S
-local x1, y1, x2, y2
 local oldGeometry
-local lastGeometry = ""
-local mapRect                       -- { x1, y1, x2, y2 } of the minimap itself
+local frames = 0
+local lastRect = ""
 
 --------------------------------------------------------------------------------
 
 local function Apply()
-	if not x1 then return end
-	local inset = S.px(INSET)
-	local boxW, boxH = (x2 - x1) - inset * 2, (y2 - y1) - inset * 2
-	local aspect = (Game.mapSizeX or 1) / (Game.mapSizeZ or 1)
-	local w, h = boxW, boxH
-	if aspect > 1 then h = floor(boxW / aspect) else w = floor(boxH * aspect) end
-	local mx = floor(x1 + inset + (boxW - w) * 0.5)
-	local topY = floor(y2 - inset - (boxH - h) * 0.5)
-	-- the engine measures the minimap's y position from the top of the screen
-	mapRect = { mx, topY - h, mx + w, topY }
-	local geometry = string.format("%i %i %i %i", mx, S.vsy - topY, w, h)
-	if geometry ~= lastGeometry then
-		lastGeometry = geometry
-		Spring.SendCommands("minimap geometry " .. geometry)
+	local aspect = (Game.mapSizeZ or 1) / (Game.mapSizeX or 1)   -- height / width
+	local h = S.px(MAP_HEIGHT)
+	local w = floor(h / aspect + 0.5)
+	local maxW = S.px(MAX_MAP_WIDTH)
+	if w > maxW then
+		w = maxW
+		h = floor(w * aspect + 0.5)
 	end
+	local inset = S.px(S.theme.margin) + S.px(FRAME)
+	-- x and y are measured from the top-left corner of the screen
+	spSendCommands("minimap geo " .. inset .. " " .. inset .. " " .. w .. " " .. h)
+	spSendCommands("minimap border 0")
 end
 
-local function Layout()
-	x1, y1, x2, y2 = S.Box(ID, "l", "t", S.theme.margin, S.theme.margin, SIZE, SIZE)
-	Apply()
+-- Publish the frame rectangle and tell the other panels when it changes.
+local function Publish(x, y, w, h)
+	local pad = S.px(FRAME)
+	local rect = { x1 = x - pad, y1 = y - pad, x2 = x + w + pad, y2 = y + h + pad }
+	local key = rect.x1 .. ":" .. rect.y1 .. ":" .. rect.x2 .. ":" .. rect.y2
+	S.minimap = rect
+	if key ~= lastRect then
+		lastRect = key
+		if S.Notify then S.Notify() end
+	end
+	return rect
 end
 
 function widget:Initialize()
@@ -57,42 +85,58 @@ function widget:Initialize()
 		return
 	end
 	oldGeometry = Spring.GetConfigString("MiniMapGeometry", "2 2 200 200")
-	Spring.SendCommands("minimap minimize 0")
-	S.Register(ID, "Minimap", Layout)
-	S.OnChange(ID, Layout)
-	Layout()
+	spSendCommands("minimap minimize 0")
+	S.OnChange("minimap", function() frames = 0 ; Apply() end)
+	Apply()
 end
 
 function widget:Shutdown()
 	if oldGeometry and oldGeometry ~= "" then
-		Spring.SendCommands("minimap geometry " .. oldGeometry)
+		spSendCommands("minimap geo " .. oldGeometry)
 	end
+	spSendCommands("minimap border 1")
 	if S then
-		S.Unregister(ID)
-		S.OffChange(ID)
+		S.OffChange("minimap")
+		S.Unblur("minimap")
+		S.minimap = nil
+		if S.Notify then S.Notify() end
 	end
 end
 
 function widget:ViewResize()
 	if S and WG.Slate == S then
-		lastGeometry = ""
-		Layout()
+		frames = 0
+		Apply()
 	end
 end
 
--- The engine draws its minimap before widgets draw, so a full panel here would
--- sit on top of it. Draw the frame as four bands around the map instead.
+-- The engine can replace the geometry while a game is starting, so keep asking
+-- for a short while and then leave it alone.
+function widget:Update()
+	if WG.Slate ~= S then return end
+	if frames < REAPPLY_FRAMES then
+		frames = frames + 1
+		Apply()
+	end
+end
+
 function widget:DrawScreen()
-	if WG.Slate ~= S or not x1 or not mapRect then return end
+	if WG.Slate ~= S then return end
+	local x, y, w, h, minimized = spGetMiniMapGeometry()
+	if not (x and y and w and h) or minimized then return end
+
+	local r = Publish(x, y, w, h)
 	local t = S.theme
 	local p = t.panel
 	local glass = { p[1], p[2], p[3], t.opacity }
-	local m = mapRect
-	S.Rect(x1, m[4], x2, y2, glass, 0)          -- above the map
-	S.Rect(x1, y1, x2, m[2], glass, 0)          -- below
-	S.Rect(x1, m[2], m[1], m[4], glass, 0)      -- left
-	S.Rect(m[3], m[2], x2, m[4], glass, 0)      -- right
-	S.Outline(x1, y1, x2, y2, t.border, S.px(t.radius), 1)
-	S.Outline(m[1] - 1, m[2] - 1, m[3] + 1, m[4] + 1, t.buttonBorder, 0, 1)
+
+	-- The engine has already drawn the map, so the glass goes around it as
+	-- four bands, never over it.
+	S.Rect(r.x1, y + h, r.x2, r.y2, glass, 0)     -- top
+	S.Rect(r.x1, r.y1, r.x2, y, glass, 0)         -- bottom
+	S.Rect(r.x1, y, x, y + h, glass, 0)           -- left
+	S.Rect(x + w, y, r.x2, y + h, glass, 0)       -- right
+	S.Outline(r.x1, r.y1, r.x2, r.y2, t.border, S.px(3), 1)
+	S.Outline(x - 1, y - 1, x + w + 1, y + h + 1, t.buttonBorder, 0, 1)
 	S.Flush()
 end

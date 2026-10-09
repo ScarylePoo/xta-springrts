@@ -625,3 +625,4 @@ function widget:TextCommand(command)
 end
 
 Rescale = RescaleNow
+S.Notify = NotifyAll
