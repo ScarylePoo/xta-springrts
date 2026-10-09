@@ -19,8 +19,8 @@ end
 --
 -- Every Slate panel is a small widget that asks this one for three things:
 --
---   WG.Slate.theme   colours, opacity, sizes   (luaui/configs/slate_theme.lua)
---   WG.Slate.game    what the game looks like  (luaui/configs/slate_game.lua)
+--   WG.Slate.theme   colours, opacity, sizes   (luaui/slate/configs/slate_theme.lua)
+--   WG.Slate.game    what the game looks like  (luaui/slate/configs/slate_game.lua)
 --   drawing helpers  Panel, Rect, Outline, Icon, Text, Box, ...
 --
 -- so no panel hardcodes a colour, loads its own font, or knows whether shapes
@@ -28,15 +28,18 @@ end
 --
 -- TO USE SLATE IN ANOTHER GAME
 --
---   copy  luaui/widgets/slate_*.lua
---         luaui/configs/slate_theme.lua, slate_game.lua
---         luaui/fonts/<theme.font>
---   edit  slate_game.lua (and slate_theme.lua to taste)
+--   copy  the luaui/slate/ folder
+--   add   luaui/slate/widgets/ to the widget handler's search (README.md)
+--   edit  a copy of slate_game.lua (and slate_theme.lua to taste) placed in
+--         the game's own luaui/configs/, which is read in preference
 --
 -- Nothing else in the game refers to these files.
 --------------------------------------------------------------------------------
 
-local CONFIG_DIR = LUAUI_DIRNAME .. "configs/"
+local SLATE_DIR  = LUAUI_DIRNAME .. "slate/"
+-- A game's own copy in luaui/configs/ wins, so the slate folder can be
+-- replaced with a newer one without losing the game's settings.
+local CONFIG_DIRS = { LUAUI_DIRNAME .. "configs/", SLATE_DIR .. "configs/" }
 local BASE_HEIGHT = 1080
 
 local spGetViewGeometry = Spring.GetViewGeometry
@@ -63,9 +66,15 @@ local saved = {}
 --------------------------------------------------------------------------------
 
 local function LoadTable(file, fallback)
-	local path = CONFIG_DIR .. file
-	if not VFS.FileExists(path) then
-		spEcho("[Slate] missing " .. path)
+	local path
+	for i = 1, #CONFIG_DIRS do
+		if VFS.FileExists(CONFIG_DIRS[i] .. file) then
+			path = CONFIG_DIRS[i] .. file
+			break
+		end
+	end
+	if not path then
+		spEcho("[Slate] missing " .. CONFIG_DIRS[#CONFIG_DIRS] .. file)
 		return fallback
 	end
 	local ok, result = pcall(VFS.Include, path)
@@ -131,7 +140,8 @@ local function LoadFont()
 	if font and px == fontPixels then return end
 	if rawFont then gl.DeleteFont(rawFont) end
 	fontPixels = px
-	local file = LUAUI_DIRNAME .. "fonts/" .. (S.theme.font or "")
+	local file = SLATE_DIR .. "fonts/" .. (S.theme.font or "")
+	if not VFS.FileExists(file) then file = LUAUI_DIRNAME .. "fonts/" .. (S.theme.font or "") end
 	rawFont = VFS.FileExists(file) and gl.LoadFont(file, px, max(2, floor(px * 0.2)), 1.4) or nil
 	if not rawFont then
 		rawFont = gl.LoadFont("FreeSansBold.otf", px, max(2, floor(px * 0.2)), 1.4)

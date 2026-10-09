@@ -32,12 +32,39 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 
 ## Using it in another game
 
-1. Copy the files above into the game's `luaui/` folder.
-2. Edit `configs/slate_game.lua`: resources, build categories, hidden commands,
-   unit stats, menu entries.
-3. Edit `configs/slate_theme.lua` to taste.
+Everything Slate needs is in this one folder (`luaui/slate/`): `widgets/`,
+`configs/` and `fonts/`. Nothing in it names the game it sits in.
+
+1. Copy the `luaui/slate/` folder into the game.
+2. Tell the game's widget handler to load widgets from it as well. In the
+   stock handler (`luaui/widgets.lua`) that is one extra directory scan next to
+   the one for `LuaUI/Widgets/`:
+
+   ```lua
+   for _, wf in ipairs(VFS.DirList(LUAUI_DIRNAME .. 'Slate/Widgets/', "*.lua", VFS.ZIP_ONLY)) do
+     local widget = self:LoadWidget(wf, true)
+     if widget then table.insert(unsortedWidgets, widget) end
+   end
+   ```
+
+   Make sure the handler that runs is the game's own. Many engine installs
+   carry a loose `LuaUI/widgets.lua`, and a plain `include("widgets.lua")` in
+   `main.lua` picks that one over the game's. Load it from the archive:
+
+   ```lua
+   VFS.Include(LUAUI_DIRNAME .. "widgets.lua", nil, VFS.ZIP_FIRST)
+   ```
+
+3. Copy `configs/slate_game.lua` to the game's own `luaui/configs/` and edit it
+   there: resources, build categories, hidden commands, unit stats, menu
+   entries. Do the same with `slate_theme.lua` to change the look. A file in
+   `luaui/configs/` is read in preference to the one in this folder, so the
+   folder can later be swapped for a newer Slate without losing the game's
+   settings. (Editing the files in place works too.)
 4. Disable or remove any widgets that draw the same things (resource bar,
    build menu, tooltip, console, player list, minimap frame).
+
+To take Slate out again, delete the folder and the lines from step 2.
 
 Slate needs the stock LuaUI widget handler and nothing else from the game. Blur
 behind panels uses a `GUI-Shader` widget (`WG['guishader_api']`) if the game
@@ -64,7 +91,7 @@ has one and is skipped otherwise.
 | Ctrl+F11 | Tweak mode: drag panels, right-click one to reset it |
 
 These choices are saved per player. Colour tints are listed in
-`slate_theme.lua` (`tints`); add or change entries there.
+`configs/slate_theme.lua` (`tints`); add or change entries there.
 
 ## Key binding files
 

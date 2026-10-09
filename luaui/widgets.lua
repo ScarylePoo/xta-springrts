@@ -29,6 +29,11 @@ local gl = gl
 
 local CONFIG_FILENAME    = LUAUI_DIRNAME .. 'Config/' .. Game.modShortName .. '.lua'
 local WIDGET_DIRNAME     = LUAUI_DIRNAME .. 'Widgets/'
+-- Self-contained UI suites shipped in their own folder. Delete the folder (and
+-- its line here) to remove the suite.
+local SUITE_WIDGET_DIRS  = {
+  LUAUI_DIRNAME .. 'Slate/Widgets/',
+}
 
 local SELECTOR_BASENAME = 'selector.lua'
 
@@ -346,6 +351,16 @@ function widgetHandler:Initialize()
     local widget = self:LoadWidget(wf, true)
     if (widget) then
       table.insert(unsortedWidgets, widget)
+    end
+  end
+
+  -- and the widgets of any bundled suites
+  for _,dir in ipairs(SUITE_WIDGET_DIRS) do
+    for k,wf in ipairs(VFS.DirList(dir, "*.lua", VFS.ZIP_ONLY)) do
+      local widget = self:LoadWidget(wf, true)
+      if (widget) then
+        table.insert(unsortedWidgets, widget)
+      end
     end
   end
 

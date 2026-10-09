@@ -22,7 +22,9 @@ include("savetable.lua")
 include("debug.lua")
 include("fonts.lua")
 include("layout.lua")   -- contains a simple LayoutButtons()
-include("widgets.lua")  -- the widget handler
+-- the widget handler: always the game's own copy, never a loose one in the
+-- engine folder, because ours also loads the widgets in LuaUI/Slate/Widgets/
+VFS.Include(LUAUI_DIRNAME .. "widgets.lua", nil, VFS.ZIP_FIRST)
 
 
 --------------------------------------------------------------------------------

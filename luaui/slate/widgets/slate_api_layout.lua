@@ -83,7 +83,7 @@ local math_min          = math.min
 local math_abs          = math.abs
 
 local BASE_RESOLUTION   = 1080
-local FONT_FILE         = LUAUI_DIRNAME .. "fonts/" .. Spring.GetConfigString("ui_font", "Saira_SemiCondensed-SemiBold.ttf")
+local FONT_FILE         = LUAUI_DIRNAME .. "slate/fonts/" .. Spring.GetConfigString("ui_font", "Saira_SemiCondensed-SemiBold.ttf")
 
 -- Overlay colours (guishader-agnostic; the overlay only exists in tweak mode)
 local COL_DIM       = { 0.00, 0.00, 0.00, 0.35 }
