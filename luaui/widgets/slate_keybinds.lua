@@ -426,12 +426,16 @@ function widget:MouseWheel(up)
 	return true
 end
 
--- Name of the pressed key. The engine passes it as `label`; key codes above
--- 2^24 (Insert, the arrows, F-keys) cannot be looked up reliably because Lua
--- numbers here are single precision.
+-- Name of the pressed key, without modifiers ("insert", "j").
+-- The engine passes SDL 1.2 style key codes, which Spring.GetKeySymbol turns
+-- into a name. `label` is the whole keyset including modifiers ("Ctrl+insert"),
+-- so it is only a fallback, with the modifiers cut off.
 local function KeyName(key, label)
-	if type(label) == "string" and label ~= "" then return label:lower() end
-	return (Spring.GetKeySymbol(key) or ""):lower()
+	local symbol = Spring.GetKeySymbol(key) or ""
+	if symbol == "" and type(label) == "string" then
+		symbol = label:match("([^+]+)$") or ""
+	end
+	return symbol:lower()
 end
 
 local function SetStatus(title, line)
