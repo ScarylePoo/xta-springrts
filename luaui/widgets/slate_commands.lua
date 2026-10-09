@@ -55,6 +55,8 @@ local buildSignature = ""
 local builderName = ""
 local queued = {}                   -- unitDefID -> count in the selected factory's queue
 local queueTimer = 0
+local queueSignature = 0           -- changes when the queue counts change
+local refreshCount = 0             -- goes up each time the command list is re-read
 
 -- Hit rectangles rebuilt every frame by the draw code:
 -- { x1, y1, x2, y2, kind = "build"|"order"|"state"|"chip"|"prev"|"next", cmd =, chip = }
@@ -159,6 +161,7 @@ end
 
 local function RefreshQueue()
 	queued = {}
+	queueSignature = 0
 	if #builds == 0 or not spGetFullBuildQueue then return end
 	local sel = spGetSelectedUnits() or {}
 	for i = 1, #sel do
@@ -169,6 +172,9 @@ local function RefreshQueue()
 				for defID, count in pairs(q[j]) do
 					queued[defID] = (queued[defID] or 0) + count
 				end
+			end
+			for defID, count in pairs(queued) do
+				queueSignature = queueSignature + defID * 7 + count * 1009
 			end
 			return
 		end
@@ -457,39 +463,67 @@ local function DrawOrderPanel(mx, my, activeID)
 	return hoverCmd
 end
 
+local cache
+local lastHoverKey
+
+-- Which hit rectangle is under the mouse (0 for none). The rectangles belong
+-- to the current recording, so this is also what decides when to redo it.
+local function HitIndexAt(mx, my)
+	for i = #hits, 1, -1 do
+		local h = hits[i]
+		if mx >= h.x1 and mx <= h.x2 and my >= h.y1 and my <= h.y2 then return i end
+	end
+	return 0
+end
+
 function widget:DrawScreen()
 	if WG.Slate ~= S or not bx1 then return end
-	if dirty then Refresh() ; RefreshQueue() end
+	if dirty then
+		Refresh()
+		RefreshQueue()
+		refreshCount = refreshCount + 1
+	end
 
-	hits = {}
 	local mx, my = spGetMouseState()
 	local _, activeID = spGetActiveCommand()
-	local hoverDef, hoverCmd
+	local showBuild = #builds > 0
+	local showOrder = (#orders + #states) > 0
+	if not showBuild then S.Unblur(BUILD_ID) end
+	if not showOrder then S.Unblur(ORDER_ID) end
 
-	if #builds > 0 then
-		hoverDef = DrawBuildPanel(mx, my, activeID)
-	else
-		S.Unblur(BUILD_ID)
-	end
-	if #orders + #states > 0 then
-		hoverCmd = DrawOrderPanel(mx, my, activeID)
-	else
-		S.Unblur(ORDER_ID)
-	end
+	-- The menus are the most expensive thing Slate draws, so they are recorded
+	-- and only redone when the commands, the page or filter, the active
+	-- command, the factory queue or the button under the mouse changes.
+	local key = table.concat({
+		S.version, refreshCount, page, filter and filter.label or "", activeID or 0,
+		HitIndexAt(mx, my), queueSignature, bx1, by1, ox1, oy1,
+	}, ":")
+	cache = S.Cached(cache, key, function()
+		hits = {}
+		if showBuild then DrawBuildPanel(mx, my, activeID) end
+		if showOrder then DrawOrderPanel(mx, my, activeID) end
+	end)
 
 	-- Tell the selection panel what the mouse is over, and the key bindings
-	-- widget which button a Ctrl+Insert / Ctrl+Delete would apply to.
-	if hoverDef then
-		S.hover = { unitDefID = hoverDef } ; myHover = true
-		local ud = UnitDefs[hoverDef]
-		S.hoverAction = hoverBuildCmd and hoverBuildCmd.action ~= "" and
-			{ action = hoverBuildCmd.action, label = ud.translatedHumanName or ud.humanName or ud.name } or nil
-	elseif hoverCmd then
-		S.hover = { title = CleanName(hoverCmd.name), text = hoverCmd.tooltip } ; myHover = true
-		S.hoverAction = (hoverCmd.action and hoverCmd.action ~= "") and
-			{ action = hoverCmd.action, label = CleanName(hoverCmd.name) } or nil
-	elseif myHover then
-		S.hover = nil ; S.hoverAction = nil ; myHover = false
+	-- widget which button a Ctrl+Insert / Ctrl+Delete would apply to. Only
+	-- when it changes, so the selection panel can keep its own recording.
+	local h = hits[HitIndexAt(mx, my)]
+	local cmd = h and (h.kind == "build" or h.kind == "order" or h.kind == "state") and h.data or nil
+	local hoverKey = cmd and (h.kind .. ":" .. tostring(cmd.id)) or nil
+	if hoverKey ~= lastHoverKey then
+		lastHoverKey = hoverKey
+		if cmd and h.kind == "build" then
+			local ud = UnitDefs[-cmd.id]
+			S.hover = { unitDefID = -cmd.id } ; myHover = true
+			S.hoverAction = (cmd.action and cmd.action ~= "") and
+				{ action = cmd.action, label = ud.translatedHumanName or ud.humanName or ud.name } or nil
+		elseif cmd then
+			S.hover = { title = CleanName(cmd.name), text = cmd.tooltip } ; myHover = true
+			S.hoverAction = (cmd.action and cmd.action ~= "") and
+				{ action = cmd.action, label = CleanName(cmd.name) } or nil
+		elseif myHover then
+			S.hover = nil ; S.hoverAction = nil ; myHover = false
+		end
 	end
 
 	S.Flush()

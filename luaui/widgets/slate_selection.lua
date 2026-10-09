@@ -37,6 +37,8 @@ local wrapCount = 0
 
 -- What to show, decided a few times a second (not every frame).
 local view = nil
+local viewVersion = 0
+local cache
 local timer = 1
 
 --------------------------------------------------------------------------------
@@ -296,6 +298,7 @@ function widget:DrawScreen()
 		timer = 0
 		view = Decide()
 		if view then view.hoverRef = S.hover end
+		viewVersion = viewVersion + 1
 	end
 
 	if not view then
@@ -303,11 +306,13 @@ function widget:DrawScreen()
 		return
 	end
 
-	S.Panel(x1, y1, x2, y2)
-	S.Blur(ID, x1, y1, x2, y2)
-	if view.kind == "unit" then DrawUnit(view)
-	elseif view.kind == "group" then DrawGroup(view)
-	else DrawText(view) end
+	cache = S.Cached(cache, S.version .. ":" .. viewVersion, function()
+		S.Panel(x1, y1, x2, y2)
+		S.Blur(ID, x1, y1, x2, y2)
+		if view.kind == "unit" then DrawUnit(view)
+		elseif view.kind == "group" then DrawGroup(view)
+		else DrawText(view) end
+	end)
 	S.Flush()
 end
 

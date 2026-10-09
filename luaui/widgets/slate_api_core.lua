@@ -256,6 +256,46 @@ function S.Fit(str, size, width)
 	return str:sub(1, n) .. "..."
 end
 
+--------------------------------------------------------------------------------
+-- Caching
+--
+-- Drawing a panel means laying it out, formatting numbers, measuring and
+-- trimming text, and pushing every shape - a lot of Lua for something that
+-- usually looks the same as last frame. Cached() records all of that once and
+-- replays the recording until `key` changes:
+--
+--     cache = S.Cached(cache, key, function() ...draw the panel... end)
+--
+-- `key` is any value that is different whenever the panel should look
+-- different (a string built from the numbers shown is typical). Include
+-- S.version in it: that number goes up whenever the theme, scale or layout
+-- changes. Without Slate Draw there is nothing to record into, so the function
+-- simply runs every frame.
+--------------------------------------------------------------------------------
+
+S.version = 0
+
+function S.Cached(cache, key, fn)
+	if not SG then
+		fn()
+		return cache
+	end
+	cache = cache or { list = SG.NewList() }
+	if cache.key ~= key then
+		cache.key = key
+		-- One text block per recording: the panel's shapes go out in a single
+		-- batch and its text in another, instead of a draw call per label.
+		-- (Everything a panel draws as text sits on top of its shapes.)
+		SG.Record(cache.list, function()
+			if font then font:Begin() end
+			fn()
+			if font then font:End() end
+		end)
+	end
+	SG.Replay(cache.list)
+	return cache
+end
+
 -- Call at the end of every panel's DrawScreen: hands batched shapes to the GPU.
 function S.Flush()
 	if SG then SG.Flush() end
@@ -564,6 +604,7 @@ function S.OnChange(owner, fn) listeners[owner] = fn end
 function S.OffChange(owner) listeners[owner] = nil end
 
 NotifyAll = function()
+	S.version = S.version + 1
 	for owner, fn in pairs(listeners) do
 		local ok, err = pcall(fn)
 		if not ok then spEcho("[Slate] " .. tostring(owner) .. ": " .. tostring(err)) end

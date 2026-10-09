@@ -47,6 +47,7 @@ local S
 local oldGeometry
 local frames = 0
 local lastRect = ""
+local cache
 
 --------------------------------------------------------------------------------
 
@@ -126,17 +127,18 @@ function widget:DrawScreen()
 	if not (x and y and w and h) or minimized then return end
 
 	local r = Publish(x, y, w, h)
-	local t = S.theme
-	local p = t.panel
-	local glass = { p[1], p[2], p[3], t.opacity }
-
-	-- The engine has already drawn the map, so the glass goes around it as
-	-- four bands, never over it.
-	S.Rect(r.x1, y + h, r.x2, r.y2, glass, 0)     -- top
-	S.Rect(r.x1, r.y1, r.x2, y, glass, 0)         -- bottom
-	S.Rect(r.x1, y, x, y + h, glass, 0)           -- left
-	S.Rect(x + w, y, r.x2, y + h, glass, 0)       -- right
-	S.Outline(r.x1, r.y1, r.x2, r.y2, t.border, S.px(3), 1)
-	S.Outline(x - 1, y - 1, x + w + 1, y + h + 1, t.buttonBorder, 0, 1)
+	cache = S.Cached(cache, S.version .. ":" .. lastRect, function()
+		local t = S.theme
+		local p = t.panel
+		local glass = { p[1], p[2], p[3], t.opacity }
+		-- The engine has already drawn the map, so the glass goes around it
+		-- as four bands, never over it.
+		S.Rect(r.x1, y + h, r.x2, r.y2, glass, 0)     -- top
+		S.Rect(r.x1, r.y1, r.x2, y, glass, 0)         -- bottom
+		S.Rect(r.x1, y, x, y + h, glass, 0)           -- left
+		S.Rect(x + w, y, r.x2, y + h, glass, 0)       -- right
+		S.Outline(r.x1, r.y1, r.x2, r.y2, t.border, S.px(3), 1)
+		S.Outline(x - 1, y - 1, x + w + 1, y + h + 1, t.buttonBorder, 0, 1)
+	end)
 	S.Flush()
 end

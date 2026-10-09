@@ -31,6 +31,7 @@ local x1, y1, x2, y2
 local rows = {}                     -- { header = "Team 1" } or { teamID, name, color, dead, ping }
 local rowH = ROW_H
 local timer = 10
+local rowsVersion = 0
 
 --------------------------------------------------------------------------------
 
@@ -80,6 +81,7 @@ local function Rebuild()
 	end
 	local changed = (#list ~= #rows)
 	rows = list
+	rowsVersion = rowsVersion + 1
 	if changed or not x1 then Layout() end
 end
 
@@ -119,8 +121,9 @@ function widget:Update(dt)
 	end
 end
 
-function widget:DrawScreen()
-	if WG.Slate ~= S or not x1 or #rows == 0 then return end
+local cache
+
+local function DrawPanel()
 	local t = S.theme
 	local res = S.game.resources or {}
 	S.Panel(x1, y1, x2, y2)
@@ -159,6 +162,11 @@ function widget:DrawScreen()
 		end
 		y = y - rh
 	end
+end
+
+function widget:DrawScreen()
+	if WG.Slate ~= S or not x1 or #rows == 0 then return end
+	cache = S.Cached(cache, S.version .. ":" .. rowsVersion .. ":" .. math.floor(Spring.GetGameFrame() / 10), DrawPanel)
 	S.Flush()
 end
 

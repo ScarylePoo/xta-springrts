@@ -188,17 +188,41 @@ local function DrawAddons()
 	end
 end
 
+local cache
+
+-- Everything the bar shows, rounded to what is displayed, so the recording is
+-- only redone when a visible number changes.
+local function StateKey(teamID)
+	local parts = { S.version, teamID, dragging and dragging.res.key or "" }
+	for i = 1, #columns do
+		local cur, storage, pull, income, _, share = spGetTeamResources(teamID, columns[i].res.key)
+		local n = #parts
+		parts[n + 1] = floor(cur or 0)
+		parts[n + 2] = floor(storage or 0)
+		parts[n + 3] = floor((pull or 0) * 10)
+		parts[n + 4] = floor((income or 0) * 10)
+		parts[n + 5] = floor((share or 0) * 200)
+	end
+	if ax1 then
+		local _, _, _, strength = spGetWind()
+		parts[#parts + 1] = floor((strength or 0) * 10)
+	end
+	return table.concat(parts, ":")
+end
+
 function widget:DrawScreen()
 	if WG.Slate ~= S or not x1 then return end
 	local teamID = spGetMyTeamID()
 	if not teamID then return end
 
-	S.Panel(x1, y1, x2, y2)
-	S.Blur(ID, x1, y1, x2, y2)
-	for i = 1, #columns do
-		DrawColumn(columns[i], teamID)
-	end
-	if ax1 then DrawAddons() end
+	cache = S.Cached(cache, StateKey(teamID), function()
+		S.Panel(x1, y1, x2, y2)
+		S.Blur(ID, x1, y1, x2, y2)
+		for i = 1, #columns do
+			DrawColumn(columns[i], teamID)
+		end
+		if ax1 then DrawAddons() end
+	end)
 	S.Flush()
 end
 

@@ -81,8 +81,9 @@ function widget:ViewResize()
 	if S and WG.Slate == S then Layout() end
 end
 
-function widget:DrawScreen()
-	if WG.Slate ~= S or not x1 then return end
+local cache
+
+local function DrawPanel()
 	local t = S.theme
 	local mx, my = Spring.GetMouseState()
 	S.Panel(x1, y1, x2, y2)
@@ -128,6 +129,19 @@ function widget:DrawScreen()
 	else
 		S.Unblur(ID .. "_menu")
 	end
+end
+
+function widget:DrawScreen()
+	if WG.Slate ~= S or not x1 then return end
+	-- redo the recording only when something shown changes
+	local mx, my = Spring.GetMouseState()
+	local _, speed, paused = Spring.GetGameSpeed()
+	local _, hot = EntryAt(mx, my)
+	local key = table.concat({
+		S.version, floor(Spring.GetGameSeconds() or 0), floor((speed or 1) * 10), paused and 1 or 0,
+		Spring.GetFPS() or 0, open and 1 or 0, S.Inside(mx, my, bx1, by1, bx2, by2) and 1 or 0, hot or 0,
+	}, ":")
+	cache = S.Cached(cache, key, DrawPanel)
 	S.Flush()
 end
 

@@ -33,6 +33,7 @@ local rowCount = 0
 local rowH = ROW_H
 local timer = 10
 local active = false
+local dataVersion = 0
 
 --------------------------------------------------------------------------------
 
@@ -101,6 +102,7 @@ local function Rebuild()
 
 	local changed = (count ~= rowCount) or (#list ~= #groups) or not x1
 	groups, rowCount = list, count
+	dataVersion = dataVersion + 1
 	if changed then Layout() end
 end
 
@@ -143,9 +145,9 @@ function widget:Update(dt)
 	end
 end
 
-function widget:DrawScreen()
-	if WG.Slate ~= S or not active or not x1 or #groups == 0 then return end
-	if Spring.IsGUIHidden() then return end
+local cache
+
+local function DrawPanel()
 	local t = S.theme
 	local resources = S.game.resources or {}
 	local nres = max(1, #resources)
@@ -199,6 +201,12 @@ function widget:DrawScreen()
 			y = y - rh
 		end
 	end
+end
+
+function widget:DrawScreen()
+	if WG.Slate ~= S or not active or not x1 or #groups == 0 then return end
+	if Spring.IsGUIHidden() then return end
+	cache = S.Cached(cache, S.version .. ":" .. dataVersion, DrawPanel)
 	S.Flush()
 end
 
