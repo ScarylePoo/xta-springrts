@@ -22,7 +22,8 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_settings.lua` | Settings window: interface look (opacity, blur, colour tint, size), graphics, sound |
 | `widgets/slate_widgetlist.lua` | Widget list on F11 |
 | `widgets/slate_econgraph.lua` | Income and demand over time, one chart per resource |
-| `widgets/slate_teamstats.lua` | Per-team statistics over the game; opens at game end |
+| `widgets/slate_teamstats.lua` | End-of-game graph: a line per team for eight statistics; replaces the engine's |
+| `widgets/slate_ecostats.lua` | Spectators only: every team's income side by side with alliance totals |
 | `widgets/slate_keybinds.lua` | View and change key bindings; changes go to a per-game file (see below) |
 | `widgets/slate_share.lua` | Give resources or selected units to an ally |
 | `configs/slate_theme.lua` | Every colour, opacity and size |

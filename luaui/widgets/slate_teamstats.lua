@@ -3,10 +3,10 @@
 
 function widget:GetInfo()
 	return {
-		name    = "Slate Team Statistics",
-		desc    = "One line per team for a chosen statistic over the game. Opens when the game ends, from the Menu, or with /slate stats.",
+		name    = "Slate End Graph",
+		desc    = "The end-of-game statistics graph: one line per team for a chosen statistic. Opens when the game ends; during play, from the Menu or with /slate stats (you then see only what the engine lets you see).",
 		author  = "Scary le Poo",
-		date    = "2026-10-08",
+		date    = "2026-10-09",
 		license = "GNU GPL, v2 or later",
 		layer   = -13,
 		enabled = true,
@@ -14,29 +14,37 @@ function widget:GetInfo()
 end
 
 local ID = "teamstats"
-local WIDTH, HEIGHT = 860, 600      -- design pixels
-local TAB_H = 34
+local WIDTH, HEIGHT = 1100, 660     -- design pixels
+local SIDEBAR_W = 210
+local BUTTON_H  = 30
+local LEGEND_H  = 24
+
 local floor = math.floor
-local max = math.max
+local min, max = math.min, math.max
 
 local S
 local open = false
 local closeRect
 local wx1, wy1, wx2, wy2
 local hits = {}
-local stat = 1
+local stat = 2
 local series = {}
 local sampleTimes = {}
 local timer = 10
 local hiddenTeams = 0
+local gameOverSeen = false
+local hoverIndex
 
--- Fields of the engine's per-team statistics history.
+-- Fields of the engine's per-team statistics history, in button order.
 local stats = {
-	{ label = "Metal produced",  key = "metalProduced" },
-	{ label = "Energy produced", key = "energyProduced" },
-	{ label = "Damage dealt",    key = "damageDealt" },
-	{ label = "Units produced",  key = "unitsProduced" },
-	{ label = "Units killed",    key = "unitsKilled" },
+	{ key = "metalUsed",      label = "Metal used" },
+	{ key = "metalProduced",  label = "Metal produced" },
+	{ key = "energyUsed",     label = "Energy used" },
+	{ key = "energyProduced", label = "Energy produced" },
+	{ key = "damageDealt",    label = "Damage dealt" },
+	{ key = "damageReceived", label = "Damage received" },
+	{ key = "unitsProduced",  label = "Units built" },
+	{ key = "unitsKilled",    label = "Units killed" },
 }
 
 --------------------------------------------------------------------------------
@@ -91,6 +99,12 @@ local function Rebuild()
 		local last = p[#p] or 0
 		for j = #p + 1, n do p[j] = last end
 	end
+	-- legend order: best final value first
+	table.sort(series, function(a, b)
+		local av, bv = a.points[#a.points] or 0, b.points[#b.points] or 0
+		if av ~= bv then return av > bv end
+		return a.label < b.label
+	end)
 end
 
 local function Close()
@@ -106,9 +120,11 @@ function widget:Initialize()
 		widgetHandler:RemoveWidget()
 		return
 	end
+	Spring.SendCommands("endgraph 0")   -- this replaces the engine's own end-of-game graph
 end
 
 function widget:Shutdown()
+	Spring.SendCommands("endgraph 1")
 	if S then S.Unblur(ID) end
 end
 
@@ -121,21 +137,29 @@ function widget:TextCommand(command)
 	return false
 end
 
+local function GameOverNow()
+	if gameOverSeen or WG.Slate ~= S then return end
+	gameOverSeen = true
+	open = true
+	pcall(Rebuild)
+end
+
 function widget:GameOver()
-	if WG.Slate == S then
-		open = true
-		Rebuild()
-	end
+	GameOverNow()
 end
 
 function widget:Update(dt)
+	-- the GameOver call is not always delivered to widgets, so also poll
+	if not gameOverSeen and Spring.IsGameOver and Spring.IsGameOver() then GameOverNow() end
 	if not open then return end
 	timer = timer + dt
-	if timer > 4 then
+	if timer > 2 then
 		timer = 0
 		Rebuild()
 	end
 end
+
+--------------------------------------------------------------------------------
 
 function widget:DrawScreen()
 	if not open or WG.Slate ~= S then return end
@@ -143,33 +167,50 @@ function widget:DrawScreen()
 	local mx, my = Spring.GetMouseState()
 	hits = {}
 	local top
-	wx1, wy1, wx2, top, closeRect = S.Window(ID, WIDTH, HEIGHT, "Team statistics", mx, my)
+	wx1, wy1, wx2, top, closeRect = S.Window(ID, WIDTH, HEIGHT, gameOverSeen and "Game over" or "Team statistics", mx, my)
 	wy2 = top + S.px(44)
 
-	local pad = S.px(20)
+	local pad = S.px(18)
 	local x1, x2 = wx1 + pad, wx2 - pad
-	local y = top - S.px(12)
+	local y = top - S.px(14)
+	local side = S.px(SIDEBAR_W)
 
-	local th = S.px(TAB_H)
-	local gap = S.px(6)
-	local tw = ((x2 - x1) - gap * (#stats - 1)) / #stats
+	-- sidebar: which statistic
+	local bh, gap = S.px(BUTTON_H), S.px(5)
 	for i = 1, #stats do
-		local tx1 = floor(x1 + (i - 1) * (tw + gap))
-		local tx2 = floor(tx1 + tw)
-		local over = S.Inside(mx, my, tx1, y - th, tx2, y)
-		S.Button(tx1, y - th, tx2, y, (i == stat) and "active" or (over and "hover" or nil))
-		S.Text(S.Fit(stats[i].label, 13, tw - S.px(6)), (tx1 + tx2) * 0.5, y - th * 0.5, 13, t.text, "cv")
-		hits[#hits + 1] = { tx1, y - th, tx2, y, i }
+		local by2 = y - (i - 1) * (bh + gap)
+		local over = S.Inside(mx, my, x1, by2 - bh, x1 + side, by2)
+		S.Button(x1, by2 - bh, x1 + side, by2, (i == stat) and "active" or (over and "hover" or nil))
+		S.Text(stats[i].label, x1 + S.px(12), by2 - bh * 0.5, 13, t.text, "v")
+		hits[#hits + 1] = { x1, by2 - bh, x1 + side, by2, i }
 	end
-	y = y - th - S.px(16)
+	local ly = y - #stats * (bh + gap) - S.px(12)
 
+	-- sidebar: teams, best first, with the value under the cursor (or the latest)
 	local footer = S.px(34)
-	S.LineChart(x1, wy1 + footer, x2, y, series,
-		{ xLabel = function(i) return Clock(sampleTimes[i]) end }, mx, my)
+	local lh = S.px(LEGEND_H)
+	local room = max(0, floor((ly - (wy1 + footer)) / lh))
+	local shown = min(#series, room)
+	for i = 1, shown do
+		local e = series[i]
+		local mid = ly - (i - 0.5) * lh
+		local sw = S.px(12)
+		S.Rect(x1, mid - S.px(2), x1 + sw, mid + S.px(2), e.color, S.px(2))
+		local v = e.points[hoverIndex or #e.points] or 0
+		local value = S.Short(v)
+		S.Text(value, x1 + side, mid, 13, t.text, "rv")
+		S.Text(S.Fit(e.label, 13, side - sw - S.px(14) - S.TextWidth(value, 13)), x1 + sw + S.px(8), mid, 13, t.text, "v")
+	end
+	if #series > shown and room > 0 then
+		S.Text("+" .. (#series - shown) .. " more (hover the chart)", x1, ly - (shown + 0.5) * lh, 12, t.textDim, "v")
+	end
+
+	hoverIndex = S.LineChart(x1 + side + S.px(18), wy1 + footer, x2, y, series,
+		{ xLabel = function(i) return Clock(sampleTimes[i]) end, title = stats[stat].label, noLegend = true }, mx, my)
 
 	if hiddenTeams > 0 then
-		S.Text("Other teams appear here once the game ends, or when you are spectating.",
-			x1, wy1 + footer * 0.5 + S.px(4), 13, t.textDim, "v")
+		S.Text("Other teams appear once the game ends, or when you are spectating.",
+			x1 + side + S.px(18), wy1 + footer * 0.5 + S.px(2), 13, t.textDim, "v")
 	end
 	S.Flush()
 end

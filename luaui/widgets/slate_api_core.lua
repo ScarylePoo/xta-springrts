@@ -416,7 +416,9 @@ end
 -- series = { { label = "Income", color = {r,g,b,a}, points = { v1, v2, ... } }, ... }
 -- All series share one y axis starting at zero and the same number of points.
 -- opts.xLabel(i) -> string names point i (used for the axis ends and hover).
--- opts.title is drawn above the plot. Hovering shows the values under the cursor.
+-- opts.title is drawn above the plot. opts.noLegend leaves the legend to the
+-- caller. Hovering shows the values under the cursor; the index of the hovered
+-- point is returned (nil when the mouse is elsewhere).
 --------------------------------------------------------------------------------
 
 local function Polyline(points, width, color)
@@ -452,7 +454,7 @@ function S.LineChart(x1, y1, x2, y2, series, opts, mx, my)
 		S.Text(opts.title:upper(), x1, y2 - head * 0.5, 12, t.accent, "v")
 		lx = x1 + S.TextWidth(opts.title:upper(), 12) + S.px(18)
 	end
-	for s = 1, #series do
+	for s = 1, (opts.noLegend and 0 or #series) do
 		local e = series[s]
 		local sw = S.px(10)
 		local mid = y2 - head * 0.5
@@ -496,8 +498,10 @@ function S.LineChart(x1, y1, x2, y2, series, opts, mx, my)
 	end
 
 	-- hover: crosshair, a dot on each line, and the values at that point
+	local hoverIndex
 	if mx and S.Inside(mx, my, px1, py1, px2, py2) then
 		local i = floor((mx - px1) / (px2 - px1) * (n - 1) + 0.5) + 1
+		hoverIndex = i
 		local hx = floor(px1 + (px2 - px1) * (i - 1) / (n - 1))
 		S.Rect(hx, py1, hx + 1, py2, t.textDim, 0)
 		local rows = {}
@@ -527,6 +531,7 @@ function S.LineChart(x1, y1, x2, y2, series, opts, mx, my)
 			S.Text(rows[r].label, bx + S.px(26), ty, 13, t.text, "v")
 		end
 	end
+return hoverIndex
 end
 
 --------------------------------------------------------------------------------
