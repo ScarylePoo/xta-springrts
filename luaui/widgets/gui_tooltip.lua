@@ -7,7 +7,7 @@ function widget:GetInfo()
 		date      = "September 2012",
 		license   = "GNU GPL v2",
 		layer     = 0,
-		enabled   = true
+		enabled   = false -- Red Tooltip is the default; both drawing at once overlap
 	}
 end
 
