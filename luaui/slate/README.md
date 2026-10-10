@@ -36,25 +36,8 @@ Everything Slate needs is in this one folder (`luaui/slate/`): `widgets/`,
 `configs/` and `fonts/`. Nothing in it names the game it sits in.
 
 1. Copy the `luaui/slate/` folder into the game.
-2. Tell the game's widget handler to load widgets from it as well. In the
-   stock handler (`luaui/widgets.lua`) that is one extra directory scan next to
-   the one for `LuaUI/Widgets/`:
-
-   ```lua
-   for _, wf in ipairs(VFS.DirList(LUAUI_DIRNAME .. 'Slate/Widgets/', "*.lua", VFS.ZIP_ONLY)) do
-     local widget = self:LoadWidget(wf, true)
-     if widget then table.insert(unsortedWidgets, widget) end
-   end
-   ```
-
-   Make sure the handler that runs is the game's own. Many engine installs
-   carry a loose `LuaUI/widgets.lua`, and a plain `include("widgets.lua")` in
-   `main.lua` picks that one over the game's. Load it from the archive:
-
-   ```lua
-   VFS.Include(LUAUI_DIRNAME .. "widgets.lua", nil, VFS.ZIP_FIRST)
-   ```
-
+2. Make the game's widget handler load widgets from `luaui/slate/widgets/` as
+   well. It is two small edits; [HANDLER.md](HANDLER.md) has them line for line.
 3. Copy `configs/slate_game.lua` to the game's own `luaui/configs/` and edit it
    there: resources, build categories, hidden commands, unit stats, menu
    entries. Do the same with `slate_theme.lua` to change the look. A file in
