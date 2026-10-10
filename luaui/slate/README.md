@@ -9,6 +9,7 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | File | Purpose |
 |---|---|
 | `widgets/slate_api_draw.lua` | Batched shape renderer (rounded rects, outlines, icons) |
+| `widgets/slate_api_blur.lua` | Blurs the world behind panels, working on shrunken copies of the frame so it stays cheap |
 | `widgets/slate_api_layout.lua` | Drag panels in tweak mode (Ctrl+F11); positions are saved |
 | `widgets/slate_api_core.lua` | Loads the two config files; shared scaling, font and drawing helpers |
 | `widgets/slate_resourcebar.lua` | Metal and energy, share-level marker, optional wind and tidal read-outs |
@@ -49,9 +50,9 @@ Everything Slate needs is in this one folder (`luaui/slate/`): `widgets/`,
 
 To take Slate out again, delete the folder and the lines from step 2.
 
-Slate needs the stock LuaUI widget handler and nothing else from the game. Blur
-behind panels uses a `GUI-Shader` widget (`WG['guishader_api']`) if the game
-has one and is skipped otherwise.
+Slate needs the stock LuaUI widget handler and nothing else from the game. The
+blur behind panels is Slate's own (`slate_api_blur.lua`); on a graphics card
+that cannot do it, panels are drawn without blur.
 
 ## In-game commands
 

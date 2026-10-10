@@ -13,8 +13,8 @@ return {
 	-- Panel glass. `opacity` is the alpha of the panel body (0 = invisible,
 	-- 1 = solid). Players can change it in game with "/slate opacity 0.6".
 	opacity      = 0.60,
-	-- Blur the game world behind panels (needs the GUI-Shader widget, which
-	-- Slate switches on when this is true). "/slate blur" toggles it.
+	-- Blur the game world behind panels (done by the Slate Blur widget).
+	-- "/slate blur" toggles it, and so does the settings screen.
 	blur         = true,
 	-- Overall size multiplier on top of resolution scaling.
 	scale        = 1.0,

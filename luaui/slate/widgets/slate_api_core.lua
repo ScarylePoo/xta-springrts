@@ -358,26 +358,25 @@ end
 -- Blur behind panels (optional)
 --------------------------------------------------------------------------------
 
-local blurred = {}
+-- Panels say where they are; the Slate Blur widget does the blurring and
+-- reads this table. Without that widget, or with blur off, nothing happens.
+S.blurRects = {}
 
 function S.Blur(id, x1, y1, x2, y2)
-	local api = WG["guishader_api"]
-	if not (S.theme.blur and api and x1) then
-		if blurred[id] and api then api.RemoveRect("slate_" .. id) end
-		blurred[id] = nil
+	if not x1 then
+		S.blurRects[id] = nil
 		return
 	end
-	local key = x1 .. ":" .. y1 .. ":" .. x2 .. ":" .. y2
-	if blurred[id] ~= key then
-		api.InsertRect(x1, y1, x2, y2, "slate_" .. id)
-		blurred[id] = key
+	local r = S.blurRects[id]
+	if not r then
+		S.blurRects[id] = { x1, y1, x2, y2 }
+	else
+		r[1], r[2], r[3], r[4] = x1, y1, x2, y2
 	end
 end
 
 function S.Unblur(id)
-	local api = WG["guishader_api"]
-	if blurred[id] and api then api.RemoveRect("slate_" .. id) end
-	blurred[id] = nil
+	S.blurRects[id] = nil
 end
 
 --------------------------------------------------------------------------------
@@ -427,9 +426,6 @@ local NotifyAll, Rescale   -- defined below
 function S.Set(key, value)
 	saved[key] = value
 	ApplySaved()
-	if key == "blur" and value and not WG["guishader_api"] then
-		widgetHandler:EnableWidget("GUI-Shader")
-	end
 	Rescale()
 	NotifyAll()
 end
@@ -642,10 +638,6 @@ function widget:Initialize()
 	ApplySaved()
 	RescaleNow()
 
-	if S.theme.blur and not WG["guishader_api"] then
-		widgetHandler:EnableWidget("GUI-Shader")
-	end
-
 	-- Line-of-sight view on at the start of a game, if the game asks for it.
 	-- Only before the game starts, so a player who turns it off keeps it off
 	-- when the interface is reloaded.
@@ -658,11 +650,7 @@ end
 
 function widget:Shutdown()
 	if WG.Slate == S then WG.Slate = nil end
-	local api = WG["guishader_api"]
-	if api then
-		for id in pairs(blurred) do api.RemoveRect("slate_" .. id) end
-	end
-	blurred = {}
+	S.blurRects = {}
 	if rawFont then gl.DeleteFont(rawFont) ; rawFont = nil end
 end
 
@@ -693,7 +681,6 @@ function widget:TextCommand(command)
 		end
 	elseif arg1 == "blur" then
 		saved.blur = not S.theme.blur
-		if saved.blur and not WG["guishader_api"] then widgetHandler:EnableWidget("GUI-Shader") end
 		spEcho("[Slate] blur behind panels " .. (saved.blur and "on" or "off"))
 	elseif arg1 == "wind" or arg1 == "tidal" then
 		local addons = S.game.addons or {}
