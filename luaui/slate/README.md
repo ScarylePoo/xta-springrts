@@ -15,7 +15,8 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_resourcebar.lua` | Metal and energy, share-level marker, optional wind and tidal read-outs |
 | `widgets/slate_commands.lua` | Build grid (filters, paging, queue counts) and order/state buttons |
 | `widgets/slate_selection.lua` | Selected unit or group, unit under cursor, build/order descriptions |
-| `widgets/slate_playerslist.lua` | Players by team with resource levels and ping |
+| `widgets/slate_playerslist.lua` | Every player by team: resources, CPU and ping, FPS, disconnects, alliance button, spectator list; click an ally to share, or as a spectator click a player to follow their camera |
+| `widgets/slate_broadcast.lua` | Sends your FPS, system and camera to other players' Slate and collects theirs (needed for the FPS column, system details and camera following) |
 | `widgets/slate_chat.lua` | On-screen chat with team-coloured names and a colour per channel; console output is kept out |
 | `widgets/slate_chatlog.lua` | Scrollback window with Chat / Console / All tabs |
 | `widgets/slate_topbar.lua` | Clock, speed, frame rate, Menu |

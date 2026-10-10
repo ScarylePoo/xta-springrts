@@ -16,6 +16,9 @@ return {
 	-- Blur the game world behind panels (done by the Slate Blur widget).
 	-- "/slate blur" toggles it, and so does the settings screen.
 	blur         = true,
+	-- Tell other players' Slate your frame rate, system and camera position
+	-- (FPS column, system details and click-to-follow in the players list).
+	broadcast    = true,
 	-- Overall size multiplier on top of resolution scaling.
 	scale        = 1.0,
 	-- Minimap size multiplier. Players change it in the settings screen or by

@@ -120,6 +120,7 @@ local function ApplySaved()
 	local t = S.theme
 	if type(saved.opacity) == "number" then t.opacity = min(1, max(0.1, saved.opacity)) end
 	if type(saved.blur) == "boolean" then t.blur = saved.blur end
+	if type(saved.broadcast) == "boolean" then t.broadcast = saved.broadcast end
 	if type(saved.scale) == "number" then t.scale = min(1.5, max(0.7, saved.scale)) end
 	if type(saved.minimapSize) == "number" then t.minimapSize = min(2.5, max(0.5, saved.minimapSize)) end
 	if type(saved.tint) == "string" then t.tint = saved.tint end
@@ -410,7 +411,7 @@ end
 
 --------------------------------------------------------------------------------
 -- Settings: what the settings screen (or any widget) reads and writes.
--- Keys: opacity, blur, scale, minimapSize, tint, tintStrength, wind, tidal.
+-- Keys: opacity, blur, broadcast, scale, minimapSize, tint, tintStrength, wind, tidal.
 --------------------------------------------------------------------------------
 
 function S.Get(key)

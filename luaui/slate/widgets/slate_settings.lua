@@ -91,6 +91,7 @@ local function BuildTabs()
 			SlateSlider("Minimap size", "minimapSize", 0.5, 2.5, 0.05, false),
 			SlateToggle("Wind read-out", "wind"),
 			SlateToggle("Tidal read-out (maps with water)", "tidal"),
+			SlateToggle("Broadcast my camera, FPS and system", "broadcast"),
 			{ kind = "button", label = "Panel positions", text = "Reset to default",
 				action = function() if WG.SlateLayout then WG.SlateLayout.ResetAll() end end },
 		} },
