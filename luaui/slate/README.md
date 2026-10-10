@@ -65,7 +65,7 @@ has one and is skipped otherwise.
 | `/slate keys` | Open key bindings |
 | Ctrl+Insert | While hovering a build or order button: bind it to the next key pressed |
 | Ctrl+Delete | While hovering a build or order button: remove its key |
-| `/slate share` | Open the share window (or click an ally in the players list) |
+| `/slate share` | Open the share window (also H, or click an ally in the players list) |
 | `/slate opacity 0.6` | Panel opacity, 0.1 to 1 |
 | `/slate blur` | Toggle blur behind panels |
 | `/slate wind` | Toggle the wind read-out |

@@ -204,12 +204,10 @@ end
 
 local function Layout()
 	local t = S.theme
-	-- the build menu sits directly under the minimap frame, wherever the
-	-- engine actually put it
-	local below = t.margin + MINIMAP_H
-	if S.minimap then below = (S.vsy - S.minimap.y1) / S.scale end
-	bx1, by1, bx2, by2 = S.Box(BUILD_ID, "l", "t", t.margin, below + t.gap, PANEL_W, BUILD_H)
 	ox1, oy1, ox2, oy2 = S.Box(ORDER_ID, "l", "b", t.margin, t.margin, PANEL_W, ORDER_H)
+	-- the build menu stands on the orders menu and follows it if it is moved,
+	-- so it stays put whatever shape the minimap takes
+	bx1, by1, bx2, by2 = S.Box(BUILD_ID, "l", "b", ox1 / S.scale, oy2 / S.scale + t.gap, PANEL_W, BUILD_H)
 end
 
 function widget:Initialize()

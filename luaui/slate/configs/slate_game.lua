@@ -80,6 +80,10 @@ return {
 		end },
 	},
 
+	-- Start each game in line-of-sight view (the L key view that shades what
+	-- you cannot see). Players can still switch it off.
+	losView = true,
+
 	-- Sounds for incoming chat by channel (public, ally, spectator, whisper),
 	-- as names for Spring.PlaySoundFile. Leave nil for silence.
 	chatSounds = nil,
@@ -89,7 +93,7 @@ return {
 		{ label = "Settings",        command = "slate settings" },
 		{ label = "Economy graph",   command = "slate economy" },
 		{ label = "Team statistics", command = "slate stats" },
-		{ label = "Share with ally", command = "slate share" },
+		{ label = "Share (H)",       command = "slate share" },
 		{ label = "Chat log",        command = "slate log" },
 		{ label = "Key bindings",    command = "slate keys" },
 		{ label = "Widgets (F11)",   command = "slate widgets" },

@@ -643,6 +643,13 @@ function widget:Initialize()
 		widgetHandler:EnableWidget("GUI-Shader")
 	end
 
+	-- Line-of-sight view on at the start of a game, if the game asks for it.
+	-- Only before the game starts, so a player who turns it off keeps it off
+	-- when the interface is reloaded.
+	if S.game.losView and (Spring.GetGameFrame() or 0) <= 0 and Spring.GetMapDrawMode() ~= "los" then
+		Spring.SendCommands("togglelos")
+	end
+
 	WG.Slate = S
 end
 
