@@ -226,7 +226,12 @@ end
 local function Layout()
 	-- start to the right of the minimap frame, which varies with the map
 	local left = LEFT_OFFSET
-	if S.minimap then left = S.minimap.x2 / S.scale + S.theme.gap end
+	if S.minimap then
+		-- only step aside while the minimap is actually in this corner
+		local m = S.minimap
+		local inCorner = m.x1 < S.px(LEFT_OFFSET) and m.y2 > S.vsy - S.px(TOP_OFFSET + 60)
+		left = inCorner and (m.x2 / S.scale + S.theme.gap) or S.theme.margin
+	end
 	x1, y1, x2, y2 = S.Box(ID, "l", "t", left, TOP_OFFSET, WIDTH, HEIGHT)
 	-- keep the engine's chat entry line just under the messages
 	Spring.SendCommands(string.format("inputtextgeo %.3f %.3f 0.02 0.028",

@@ -88,6 +88,7 @@ local function BuildTabs()
 			{ kind = "swatches", label = "Colour tint" },
 			SlateSlider("Tint strength", "tintStrength", 0, 1.0, 0.05, true),
 			SlateSlider("Interface size", "scale", 0.7, 1.5, 0.05, false),
+			SlateSlider("Minimap size", "minimapSize", 0.5, 2.5, 0.05, false),
 			SlateToggle("Wind read-out", "wind"),
 			SlateToggle("Tidal read-out (maps with water)", "tidal"),
 			{ kind = "button", label = "Panel positions", text = "Reset to default",

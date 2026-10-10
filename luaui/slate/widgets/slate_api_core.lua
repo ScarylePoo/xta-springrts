@@ -121,6 +121,7 @@ local function ApplySaved()
 	if type(saved.opacity) == "number" then t.opacity = min(1, max(0.1, saved.opacity)) end
 	if type(saved.blur) == "boolean" then t.blur = saved.blur end
 	if type(saved.scale) == "number" then t.scale = min(1.5, max(0.7, saved.scale)) end
+	if type(saved.minimapSize) == "number" then t.minimapSize = min(2.5, max(0.5, saved.minimapSize)) end
 	if type(saved.tint) == "string" then t.tint = saved.tint end
 	if type(saved.tintStrength) == "number" then t.tintStrength = saved.tintStrength end
 	ApplyTint()
@@ -337,9 +338,11 @@ function S.Box(id, anchorX, anchorY, offX, offY, w, h)
 	return x1, y1, x1 + pw, y1 + ph
 end
 
-function S.Register(id, label, onMove)
+-- onResize(width, height), optional, makes the panel resizable in tweak mode:
+-- it is called with the size the player is dragging the corner grip to.
+function S.Register(id, label, onMove, onResize)
 	local L = WG.SlateLayout
-	if L then L.Register("slate_" .. id, { label = label, onMove = onMove }) end
+	if L then L.Register("slate_" .. id, { label = label, onMove = onMove, onResize = onResize }) end
 end
 
 function S.Unregister(id)
@@ -408,7 +411,7 @@ end
 
 --------------------------------------------------------------------------------
 -- Settings: what the settings screen (or any widget) reads and writes.
--- Keys: opacity, blur, scale, tint, tintStrength, wind, tidal.
+-- Keys: opacity, blur, scale, minimapSize, tint, tintStrength, wind, tidal.
 --------------------------------------------------------------------------------
 
 function S.Get(key)

@@ -18,7 +18,7 @@ GUI suite in Splinter Faction (same author, GPL v2 or later).
 | `widgets/slate_chat.lua` | On-screen chat with team-coloured names and a colour per channel; console output is kept out |
 | `widgets/slate_chatlog.lua` | Scrollback window with Chat / Console / All tabs |
 | `widgets/slate_topbar.lua` | Clock, speed, frame rate, Menu |
-| `widgets/slate_minimap.lua` | Pins the engine minimap top-left, sized to the map, and frames it (not draggable) |
+| `widgets/slate_minimap.lua` | Frames the engine minimap; shape follows the map, move and resize it in tweak mode or set its size in the settings |
 | `widgets/slate_settings.lua` | Settings window: interface look (opacity, blur, colour tint, size), graphics, sound |
 | `widgets/slate_widgetlist.lua` | Widget list on F11 |
 | `widgets/slate_econgraph.lua` | Income and demand over time, one chart per resource |

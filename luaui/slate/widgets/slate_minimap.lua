@@ -4,7 +4,7 @@
 function widget:GetInfo()
 	return {
 		name    = "Slate Minimap",
-		desc    = "Pins the engine minimap to the top-left corner at a size that follows the map's shape, and draws a frame around wherever the engine actually put it.",
+		desc    = "Frames the engine minimap. Its shape follows the map; move it and resize it in tweak mode (Ctrl+F11), or set its size in the settings.",
 		author  = "Scary le Poo",
 		date    = "2026-10-08",
 		license = "GNU GPL, v2 or later",
@@ -18,52 +18,87 @@ end
 --
 -- The engine owns the minimap: it draws it, takes its mouse input and decides
 -- its final rectangle. A widget can only ask for a geometry, and the engine
--- may override that request during the first frames of a game. So this widget
--- does not treat the minimap as a panel:
+-- may override that request during the first frames of a game. So the minimap
+-- is not something inside a box this widget built; it is something this
+-- widget keeps drawing a box around:
 --
---   * it is not registered with Slate Layout and cannot be dragged;
 --   * it asks for the geometry repeatedly for the first frames, then stops;
 --   * the frame is drawn around Spring.GetMiniMapGeometry() - what the engine
 --     really did - never around what was asked for.
 --
--- Height is fixed and width follows the map, so the map is never letterboxed.
--- Very wide maps are capped in width and lose height instead.
+-- Where and how big to ask for is the player's choice. In tweak mode
+-- (Ctrl+F11) the frame drags like any other panel and its bottom-right corner
+-- resizes it; the settings screen has a size slider as well. The shape always
+-- follows the map, so the map is never letterboxed: resizing scales it, and
+-- very wide maps are capped in width and lose height instead.
 --
 -- Other panels that need to sit beside the minimap read WG.Slate.minimap,
 -- { x1, y1, x2, y2 } of the frame in screen pixels.
 --------------------------------------------------------------------------------
 
--- design pixels (1080-high screen)
+-- design pixels (1080-high screen), at size 1
 local MAP_HEIGHT    = 288
 local MAX_MAP_WIDTH = 460
 local FRAME         = 6             -- glass band around the map
 local REAPPLY_FRAMES = 30
+local ID = "minimap"
 
 local spSendCommands       = Spring.SendCommands
 local spGetMiniMapGeometry = Spring.GetMiniMapGeometry
 local floor = math.floor
+local min, max = math.min, math.max
 
 local S
 local oldGeometry
 local frames = 0
 local lastRect = ""
+local lastAsked = ""
 local cache
 
 --------------------------------------------------------------------------------
 
-local function Apply()
+-- Map size in screen pixels for a size multiplier.
+local function MapSize(size)
 	local aspect = (Game.mapSizeZ or 1) / (Game.mapSizeX or 1)   -- height / width
-	local h = S.px(MAP_HEIGHT)
-	local w = floor(h / aspect + 0.5)
-	local maxW = S.px(MAX_MAP_WIDTH)
+	local h = S.px(MAP_HEIGHT) * size
+	local w = h / aspect
+	local maxW = min(S.px(MAX_MAP_WIDTH) * size, S.vsx * 0.6)
 	if w > maxW then
 		w = maxW
-		h = floor(w * aspect + 0.5)
+		h = w * aspect
 	end
-	local inset = S.px(S.theme.margin) + S.px(FRAME)
-	-- x and y are measured from the top-left corner of the screen
-	spSendCommands("minimap geo " .. inset .. " " .. inset .. " " .. w .. " " .. h)
-	spSendCommands("minimap border 0")
+	local maxH = S.vsy * 0.7
+	if h > maxH then
+		h = maxH
+		w = h / aspect
+	end
+	return floor(w + 0.5), floor(h + 0.5)
+end
+
+local function Apply()
+	local w, h = MapSize(S.theme.minimapSize or 1)
+	local pad = S.px(FRAME)
+	local fw, fh = w + pad * 2, h + pad * 2
+	-- the frame is the panel: top-left by default, wherever it was dragged
+	-- to otherwise
+	local m = S.theme.margin
+	local fx1, fy1 = S.Box(ID, "l", "t", m, m, fw / S.scale, fh / S.scale)
+	local x = fx1 + pad
+	local top = S.vsy - (fy1 + fh) + pad      -- the engine measures from the top
+	local asked = x .. " " .. top .. " " .. w .. " " .. h
+	if asked ~= lastAsked or frames < REAPPLY_FRAMES then
+		lastAsked = asked
+		spSendCommands("minimap geo " .. asked)
+		spSendCommands("minimap border 0")
+	end
+end
+
+-- Tweak mode is dragging the corner grip to this frame size.
+local function Resize(_, frameH)
+	local _, baseH = MapSize(1)
+	local size = (frameH - S.px(FRAME) * 2) / max(1, baseH)
+	size = floor(min(2.5, max(0.5, size)) * 50 + 0.5) / 50
+	if size ~= (S.theme.minimapSize or 1) then S.Set("minimapSize", size) end
 end
 
 -- Publish the frame rectangle and tell the other panels when it changes.
@@ -87,7 +122,8 @@ function widget:Initialize()
 	end
 	oldGeometry = Spring.GetConfigString("MiniMapGeometry", "2 2 200 200")
 	spSendCommands("minimap minimize 0")
-	S.OnChange("minimap", function() frames = 0 ; Apply() end)
+	S.Register(ID, "Minimap", Apply, Resize)
+	S.OnChange(ID, Apply)
 	Apply()
 end
 
@@ -97,8 +133,9 @@ function widget:Shutdown()
 	end
 	spSendCommands("minimap border 1")
 	if S then
-		S.OffChange("minimap")
-		S.Unblur("minimap")
+		S.Unregister(ID)
+		S.OffChange(ID)
+		S.Unblur(ID)
 		S.minimap = nil
 		if S.Notify then S.Notify() end
 	end

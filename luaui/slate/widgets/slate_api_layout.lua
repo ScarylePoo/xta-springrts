@@ -239,6 +239,7 @@ function L.Register(name, opts)
 	registry[name] = {
 		label     = opts.label or name,
 		onMove    = opts.onMove,
+		onResize  = opts.onResize,
 		isVisible = opts.isVisible,
 	}
 end
@@ -310,6 +311,23 @@ end
 --------------------------------------------------------------------------------
 -- Hit testing
 --------------------------------------------------------------------------------
+
+-- Panels registered with onResize get a grip in their bottom-right corner.
+local function GripRect(r)
+	local g = math_max(14, math_floor(20 * uiScale))
+	return r.x2 - g, r.y1, r.x2, r.y1 + g
+end
+
+local function GripAt(x, y)
+	for _, name in ipairs(rectOrder) do
+		local r, reg = rects[name], registry[name]
+		if r and reg and reg.onResize then
+			local gx1, gy1, gx2, gy2 = GripRect(r)
+			if x >= gx1 and x <= gx2 and y >= gy1 and y <= gy2 then return name end
+		end
+	end
+	return nil
+end
 
 -- Smallest rect under the cursor wins, so a small panel sitting on top of a
 -- large one is still grabbable.
@@ -405,6 +423,9 @@ function widget:TweakGetTooltip(x, y)
 	if not name then return nil end
 	local reg = registry[name]
 	local label = reg and reg.label or name
+	if GripAt(x, y) == name then
+		return label .. "\nDrag the corner to resize."
+	end
 	if stored[name] then
 		return label .. "\nDrag to move. Right-click to reset."
 	end
@@ -412,6 +433,13 @@ function widget:TweakGetTooltip(x, y)
 end
 
 function widget:TweakMousePress(x, y, button)
+	local grip = (button == 1) and GripAt(x, y)
+	if grip then
+		local r = rects[grip]
+		drag = { name = grip, resize = true, startX = x, startY = y, startW = r.w, startH = r.h, x1 = r.x1, y1 = r.y1 }
+		return true
+	end
+
 	local name = RectAt(x, y)
 	if not name then return false end
 	local r = rects[name]
@@ -436,6 +464,21 @@ function widget:TweakMouseMove(x, y, dx, dy, button)
 	if not drag then return false end
 	local r = rects[drag.name]
 	if not r then drag = nil ; return false end
+	if drag.resize then
+		-- the grip is the bottom-right corner: down and right is bigger. The
+		-- owner applies the size straight away and re-Places itself.
+
+		local dy = drag.startY - y
+		local dx = (x - drag.startX) * drag.startH / math_max(1, drag.startW)
+		local d = (math_abs(dy) > math_abs(dx)) and dy or dx
+		local h = math_max(40 * uiScale, drag.startH + d)
+		local reg = registry[drag.name]
+		if reg and reg.onResize then
+			local ok, err = pcall(reg.onResize, h * drag.startW / math_max(1, drag.startH), h)
+			if not ok then spEcho("[Slate layout] onResize for '" .. drag.name .. "' failed: " .. tostring(err)) end
+		end
+		return true
+	end
 	drag.x1, drag.y1 = ClampOrigin(x - drag.grabDX, y - drag.grabDY, r.w, r.h)
 	return true
 end
@@ -446,6 +489,7 @@ function widget:TweakMouseRelease(x, y, button)
 	drag = nil
 	local r = rects[d.name]
 	if not r then return true end
+	if d.resize then return true end
 
 	-- A click without movement is not a move.
 	if math_abs(d.x1 - r.x1) < 1 and math_abs(d.y1 - r.y1) < 1 then
@@ -491,7 +535,7 @@ function widget:TweakDrawScreen()
 			local reg    = registry[name]
 			local moved  = stored[name] ~= nil
 			local isHot  = (name == hover)
-			local isDrag = drag and drag.name == name
+			local isDrag = drag and drag.name == name and not drag.resize
 			local fill   = isHot and COL_FILL_HOT or (moved and COL_FILL_MOVED or COL_FILL)
 			local line   = moved and COL_OUTLINE_MV or COL_OUTLINE
 			local hidden = reg and reg.isVisible and not reg.isVisible()
@@ -504,11 +548,15 @@ function widget:TweakDrawScreen()
 			if not isDrag then
 				FillRect(r.x1, r.y1, r.x2, r.y2, fill, 3 * uiScale)
 				OutlineRect(r.x1, r.y1, r.x2, r.y2, line, 2, 3 * uiScale)
+				if reg and reg.onResize then
+					local gx1, gy1, gx2, gy2 = GripRect(r)
+					FillRect(gx1, gy1, gx2, gy2, COL_GHOST, 2 * uiScale)
+				end
 			end
 		end
 	end
 
-	if drag then
+	if drag and not drag.resize then
 		local r = rects[drag.name]
 		if r then
 			local gx1, gy1 = drag.x1, drag.y1
@@ -523,7 +571,7 @@ function widget:TweakDrawScreen()
 	-- Labels after the flush so text sits on top of the batched shapes.
 	for _, name in ipairs(rectOrder) do
 		local r = rects[name]
-		if r and not (drag and drag.name == name) then
+		if r and not (drag and drag.name == name and not drag.resize) then
 			local reg = registry[name]
 			local hidden = reg and reg.isVisible and not reg.isVisible()
 			local label = reg and reg.label or name
@@ -532,7 +580,7 @@ function widget:TweakDrawScreen()
 			end
 		end
 	end
-	if drag then
+	if drag and not drag.resize then
 		local r = rects[drag.name]
 		if r then
 			local reg = registry[drag.name]
@@ -544,7 +592,7 @@ function widget:TweakDrawScreen()
 	if font then
 		font:Begin()
 		font:SetTextColor(1, 1, 1, 0.8)
-		font:Print("Tweak mode: drag panels to move, right-click to reset one, /resetlayout to reset all",
+		font:Print("Tweak mode: drag panels to move, drag a white corner to resize, right-click to reset one, /resetlayout to reset all",
 		           vsx * 0.5, math_floor(8 * uiScale), fontSize, "co")
 		font:End()
 	end

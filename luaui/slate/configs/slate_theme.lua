@@ -18,6 +18,9 @@ return {
 	blur         = true,
 	-- Overall size multiplier on top of resolution scaling.
 	scale        = 1.0,
+	-- Minimap size multiplier. Players change it in the settings screen or by
+	-- dragging the corner grip in tweak mode (Ctrl+F11).
+	minimapSize  = 1.0,
 
 	font         = "Saira_SemiCondensed-SemiBold.ttf",
 
