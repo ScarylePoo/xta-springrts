@@ -29,9 +29,9 @@ end
 --------------------------------------------------------------------------------
 
 local ID = "chat"
-local WIDTH, HEIGHT = 500, 190      -- design pixels
-local TOP_OFFSET    = 96            -- below the resource bar
-local LEFT_OFFSET   = 332           -- right of the minimap frame, until its real size is known
+local WIDTH, HEIGHT = 760, 190      -- design pixels; as wide as the selection panel
+local SELECTION_H   = 128           -- height of the selection panel it sits above
+local INPUT_H       = 34            -- room for the engine's chat entry line
 local LINE_H        = 22
 local TEXT_SIZE     = 16
 local MAX_LINES     = 8             -- wrapped lines on screen at once
@@ -224,18 +224,12 @@ end
 --------------------------------------------------------------------------------
 
 local function Layout()
-	-- start to the right of the minimap frame, which varies with the map
-	local left = LEFT_OFFSET
-	if S.minimap then
-		-- only step aside while the minimap is actually in this corner
-		local m = S.minimap
-		local inCorner = m.x1 < S.px(LEFT_OFFSET) and m.y2 > S.vsy - S.px(TOP_OFFSET + 60)
-		left = inCorner and (m.x2 / S.scale + S.theme.gap) or S.theme.margin
-	end
-	x1, y1, x2, y2 = S.Box(ID, "l", "t", left, TOP_OFFSET, WIDTH, HEIGHT)
-	-- keep the engine's chat entry line just under the messages
+	-- bottom centre, directly above the selection panel, with the engine's
+	-- chat entry line in the gap between the two
+	local t = S.theme
+	x1, y1, x2, y2 = S.Box(ID, "c", "b", 0, t.margin + SELECTION_H + t.gap + INPUT_H, WIDTH, HEIGHT)
 	Spring.SendCommands(string.format("inputtextgeo %.3f %.3f 0.02 0.028",
-		x1 / S.vsx, max(0.05, (y1 - S.px(34)) / S.vsy)))
+		x1 / S.vsx, max(0.02, (y1 - S.px(INPUT_H - 6)) / S.vsy)))
 	for i = 1, #overlay do
 		overlay[i].lines = Wrap(overlay[i], x2 - x1)
 	end
@@ -325,7 +319,13 @@ function widget:DrawScreen()
 		firstEntry = i
 	end
 
-	local y = y2 - lh
+	-- the newest line rests on the bottom edge and older ones stack above it
+	local shown = 0
+	for i = firstEntry, #overlay do
+		local age = now - overlay[i].born
+		if age < LINE_LIFETIME + FADE_TIME then shown = shown + #overlay[i].lines end
+	end
+	local y = y1 + (shown - 1) * lh + S.px(4)
 	for i = firstEntry, #overlay do
 		local e = overlay[i]
 		local age = now - e.born
