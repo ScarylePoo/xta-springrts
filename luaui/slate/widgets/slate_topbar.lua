@@ -36,8 +36,28 @@ local function Layout()
 	bx1 = bx2 - S.px(BUTTON_W)
 end
 
+-- Entries marked playersOnly are left out while spectating.
+local function Entries()
+	local all = S.game.menu or {}
+	if not Spring.GetSpectatingState() then return all end
+	local list = {}
+	for i = 1, #all do
+		if not all[i].playersOnly then list[#list + 1] = all[i] end
+	end
+	return list
+end
+
+-- An entry with `confirm` needs a second click within a few seconds.
+local armed, armedAt
+local ARM_SECONDS = 4
+
+local function Armed()
+	if armed and Spring.DiffTimers(Spring.GetTimer(), armedAt) > ARM_SECONDS then armed = nil end
+	return armed
+end
+
 local function MenuRect()
-	local entries = S.game.menu or {}
+	local entries = Entries()
 	local h = #entries * S.px(ENTRY_H) + S.px(12)
 	local w = S.px(190)
 	return x2 - w, y1 - S.px(8) - h, x2, y1 - S.px(8)
@@ -47,7 +67,7 @@ local function EntryAt(mx, my)
 	if not open then return nil end
 	local mx1, my1, mx2, my2 = MenuRect()
 	if not S.Inside(mx, my, mx1, my1, mx2, my2) then return nil end
-	local entries = S.game.menu or {}
+	local entries = Entries()
 	local i = floor((my2 - S.px(6) - my) / S.px(ENTRY_H)) + 1
 	return entries[i], i
 end
@@ -115,15 +135,20 @@ local function DrawPanel()
 		local mx1, my1, mx2, my2 = MenuRect()
 		S.Panel(mx1, my1, mx2, my2)
 		S.Blur(ID .. "_menu", mx1, my1, mx2, my2)
-		local entries = S.game.menu or {}
+		local entries = Entries()
 		local _, hot = EntryAt(mx, my)
+		local waiting = Armed()
 		local eh = S.px(ENTRY_H)
 		local ey = my2 - S.px(6)
 		for i = 1, #entries do
 			if i == hot then
 				S.Rect(mx1 + S.px(6), ey - eh, mx2 - S.px(6), ey, t.buttonHover, S.px(t.buttonRadius))
 			end
-			S.Text(entries[i].label, mx1 + S.px(16), ey - eh * 0.5, 14, t.text, "v")
+			if entries[i] == waiting then
+				S.Text("Click again to " .. entries[i].label:lower(), mx1 + S.px(16), ey - eh * 0.5, 14, t.warn, "v")
+			else
+				S.Text(entries[i].label, mx1 + S.px(16), ey - eh * 0.5, 14, t.text, "v")
+			end
 			ey = ey - eh
 		end
 	else
@@ -140,6 +165,7 @@ function widget:DrawScreen()
 	local key = table.concat({
 		S.version, floor(Spring.GetGameSeconds() or 0), floor((speed or 1) * 10), paused and 1 or 0,
 		Spring.GetFPS() or 0, open and 1 or 0, S.Inside(mx, my, bx1, by1, bx2, by2) and 1 or 0, hot or 0,
+		Armed() and 1 or 0, Spring.GetSpectatingState() and 1 or 0,
 	}, ":")
 	cache = S.Cached(cache, key, DrawPanel)
 	S.Flush()
@@ -165,10 +191,16 @@ function widget:MousePress(mx, my, button)
 	if WG.Slate ~= S or not x1 then return false end
 	if S.Inside(mx, my, bx1, by1, bx2, by2) then
 		open = not open
+		armed = nil
 		return true
 	end
 	local entry = EntryAt(mx, my)
 	if entry then
+		if entry.confirm and Armed() ~= entry then
+			armed, armedAt = entry, Spring.GetTimer()
+			return true
+		end
+		armed = nil
 		open = false
 		if entry.command then Spring.SendCommands(entry.command) end
 		return true
@@ -176,6 +208,7 @@ function widget:MousePress(mx, my, button)
 	if open then
 		-- a click anywhere else closes the menu
 		open = false
+		armed = nil
 		local mx1, my1, mx2, my2 = MenuRect()
 		return S.Inside(mx, my, mx1, my1, mx2, my2)
 	end

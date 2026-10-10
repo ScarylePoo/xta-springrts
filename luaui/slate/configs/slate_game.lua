@@ -89,6 +89,9 @@ return {
 	chatSounds = nil,
 
 	-- Entries in the Menu dropdown. `command` goes to Spring.SendCommands.
+	-- `confirm` asks for a second click; `playersOnly` hides the entry from
+	-- spectators. Resign gives up your team and leaves you watching; Quit
+	-- closes the game to the desktop.
 	menu = {
 		{ label = "Settings",        command = "slate settings" },
 		{ label = "Economy graph",   command = "slate economy" },
@@ -98,6 +101,7 @@ return {
 		{ label = "Key bindings",    command = "slate keys" },
 		{ label = "Widgets (F11)",   command = "slate widgets" },
 		{ label = "Pause",           command = "pause" },
-		{ label = "Quit",            command = "quitmenu" },
+		{ label = "Resign",          command = "spectator", confirm = true, playersOnly = true },
+		{ label = "Quit",            command = "quitforce", confirm = true },
 	},
 }
