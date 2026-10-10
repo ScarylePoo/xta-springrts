@@ -1,5 +1,5 @@
 return {
-  name='XTA',
+  name='XTA (Spring Necromancy Edition)',
   description='XTA Version 9.0 series',
   URL='http://code.google.com/p/xta-springrts/',
   shortname='XTA',
