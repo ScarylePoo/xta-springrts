@@ -31,7 +31,7 @@ local ACTION = "luaui slate share"
 -- design pixels
 local WIDTH        = 640
 local PAD          = 16
-local HEADER_H     = 22
+local HEADER_H     = 18
 local ROW_H        = 28
 local ENEMY_ROWS   = 3              -- allies get the rest of the left column
 local UNIT_LINE_H  = 21
@@ -39,8 +39,8 @@ local UNIT_LINES   = 4
 local CHECK_H      = 28
 local SLIDER_H     = 52
 local BUTTON_H     = 34
-local GAP          = 8
-local GROUP_GAP    = 12
+local GAP          = 6
+local GROUP_GAP    = 14
 local FOOTER_GAP   = 30             -- also holds the status line
 local BAR_W        = 6
 
@@ -62,7 +62,6 @@ local shareUnits = false
 local drag                          -- { slider = key } or { list = name, grab = px }
 local notice = ""
 local boundKey = false
-local ENEMY_COLOR = { 0.90, 0.30, 0.28, 1 }
 
 --------------------------------------------------------------------------------
 -- Data
@@ -199,11 +198,14 @@ end
 -- Drawing
 --------------------------------------------------------------------------------
 
-local function Header(r, label, color)
+-- Section label, in the same small capitals as the other Slate panels.
+local function Header(r, label, note)
 	local t = S.theme
-	S.Rect(r.x1, r.y1, r.x2, r.y2, t.button, S.px(4))
-	S.Rect(r.x1, r.y2 - max(2, S.px(3)), r.x2, r.y2, color or t.accent, 0)
-	S.Text(label, r.x1 + S.px(10), (r.y1 + r.y2) * 0.5 - S.px(1), 12, t.text, "v")
+	local mid = (r.y1 + r.y2) * 0.5
+	S.Text(label:upper(), r.x1, mid, 12, t.accent, "v")
+	if note then
+		S.Text(note, r.x1 + S.TextWidth(label:upper(), 12) + S.px(10), mid, 12, t.textDim, "v")
+	end
 end
 
 -- Rows that fit in a list box, and the furthest it can scroll.
@@ -304,12 +306,12 @@ function widget:DrawScreen()
 	g.ally         = Next(lx1, lx2, allyH, GROUP_GAP)
 	local enemyHdr = Next(lx1, lx2, HEADER_H)
 	g.enemy        = Next(lx1, lx2, enemyH)
-	Header(allyHdr, "Allies  (click to select)", t.good)
+	Header(allyHdr, "Allies", "click to select")
 	PlayerList(g.ally, allies, scroll.ally, mx, my)
 	if #allies == 0 then
 		S.Text("(no allies)", g.ally.x1 + S.px(10), g.ally.y2 - S.px(ROW_H) * 0.5, 13, t.textDim, "v")
 	end
-	Header(enemyHdr, "Enemies  (sharing to enemies is unusual!)", ENEMY_COLOR)
+	Header(enemyHdr, "Enemies", "sharing to enemies is unusual")
 	PlayerList(g.enemy, enemies, scroll.enemy, mx, my)
 
 	-- right: what
@@ -354,7 +356,7 @@ function widget:DrawScreen()
 		local res = resources[i]
 		local hdr = Next(rx1, rx2, HEADER_H)
 		local box = Next(rx1, rx2, SLIDER_H, GROUP_GAP)
-		Header(hdr, res.label .. "  to send", res.color)
+		Header(hdr, res.label, "to send")
 		S.Rect(box.x1, box.y1, box.x2, box.y2, t.track, S.px(4))
 		local storage = Storage(res.key)
 		local amt = min(amount[res.key] or 0, storage)
@@ -378,14 +380,13 @@ function widget:DrawScreen()
 	end
 	g.cancel = { x1 = lx1, y1 = by1, x2 = lx2, y2 = by2 }
 	g.apply  = { x1 = rx1, y1 = by1, x2 = rx2, y2 = by2 }
-	local function Footer(r, label, color)
+	local function Footer(r, label)
 		local over = S.Inside(mx, my, r.x1, r.y1, r.x2, r.y2)
 		S.Button(r.x1, r.y1, r.x2, r.y2, over and "hover" or nil)
-		S.Rect(r.x1 + S.px(2), r.y2 - max(2, S.px(3)), r.x2 - S.px(2), r.y2, color, 0)
 		S.Text(label, (r.x1 + r.x2) * 0.5, (r.y1 + r.y2) * 0.5 - S.px(1), 14, t.text, "cv")
 	end
-	Footer(g.cancel, "Cancel", ENEMY_COLOR)
-	Footer(g.apply, "Apply", t.chartA)
+	Footer(g.cancel, "Cancel")
+	Footer(g.apply, "Apply")
 
 	S.Flush()
 end

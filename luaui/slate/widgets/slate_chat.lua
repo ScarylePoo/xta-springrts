@@ -118,8 +118,13 @@ local function Parse(line)
 	if not player then player, body = text:match("^To ([^:]+):%s*(.*)$") end
 	if player then return { channel = "whisper", player = Trim(player), body = body, color = c.whisper } end
 
+	-- Public chat is "<Name> message". Widgets and gadgets print lines of the
+	-- same shape ("<DefenseRange> ..."), so the name has to be a player's.
 	player, body = text:match("^<([^>]+)>%s*(.*)$")
-	if player then return { channel = "public", player = player, body = body, color = c.public } end
+	if player and not players[Trim(player):lower()] then RefreshPlayers() end
+	if player and players[Trim(player):lower()] then
+		return { channel = "public", player = player, body = body, color = c.public }
+	end
 
 	player, body = text:match("^(.+) added point:%s*(.*)$")
 	if player then
@@ -245,6 +250,7 @@ function widget:Initialize()
 	WG.SlateChat = {
 		GetLog = function() return fullLog end,
 		IsChat = IsChat,
+		NameColor = NameColor,
 	}
 end
 

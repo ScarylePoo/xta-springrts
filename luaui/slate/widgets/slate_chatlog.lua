@@ -41,55 +41,97 @@ local tabs = {
 
 --------------------------------------------------------------------------------
 
-local function Code(c)
-	local function b(v) return string.char(max(1, min(255, floor(v * 255 + 0.5)))) end
-	return "\255" .. b(c[1]) .. b(c[2]) .. b(c[3])
-end
-
 local function Clock(seconds)
 	seconds = floor(seconds or 0)
 	return string.format("%d:%02d", floor(seconds / 60), seconds % 60)
 end
 
--- Turn the shared history into wrapped lines for this tab and width.
+-- Cut a word that is wider than a whole line into pieces that fit. `room` is
+-- the space left on the current line, `full` the width of the lines after it.
+local function BreakWord(word, room, full)
+	local pieces = {}
+	local start, n = 1, #word
+	while start <= n do
+		local limit = (#pieces == 0) and room or full
+		local stop = start
+		local fit = start
+		while stop <= n do
+			-- step over a whole UTF-8 character
+			local nextStop = stop
+			while nextStop < n and word:byte(nextStop + 1) >= 128 and word:byte(nextStop + 1) < 192 do
+				nextStop = nextStop + 1
+			end
+			if S.TextWidth(word:sub(start, nextStop), TEXT_SIZE) > limit and nextStop > fit then break end
+			fit = nextStop
+			stop = nextStop + 1
+		end
+		pieces[#pieces + 1] = word:sub(start, fit)
+		start = fit + 1
+	end
+	return pieces
+end
+
+-- Turn the shared history into wrapped lines for this tab and width. Each row
+-- is a list of segments { text, color, x }: the name in its team colour, the
+-- message in the colour of its channel.
 local function Rebuild(width)
 	rows = {}
 	local chat = WG.SlateChat
+	local t = S.theme
 	if not chat then
-		rows[1] = { text = "Slate Chat is switched off, so there is nothing to show. Turn it on in the widget list (F11)." }
+		rows[1] = { segs = { { text = "Slate Chat is switched off, so there is nothing to show. Turn it on in the widget list (F11).", color = t.textDim, x = 0 } } }
 		return
 	end
 	local log = chat.GetLog()
 	local test = tabs[tab].test
-	local t = S.theme
 	local stampW = S.TextWidth("000:00  ", TEXT_SIZE)
 	local bodyW = width - stampW
+	local indent = S.TextWidth("    ", TEXT_SIZE)
+	local space = S.TextWidth("a a", TEXT_SIZE) - S.TextWidth("aa", TEXT_SIZE)
 
 	for i = 1, #log do
 		local e = log[i]
 		if test(e, chat.IsChat) then
-			local bodyCode = Code(e.color or t.text)
-			local lead, leadPlain = bodyCode, ""
-			if e.player then
-				local sep = e.joined and " " or ":  "
-				lead = Code(t.text) .. e.player .. bodyCode .. sep
-				leadPlain = e.player .. sep
-			end
-			local line, plain, words = lead, leadPlain, 0
+			local color = e.color or t.text
+			local segs, offset = {}, 0
 			local first = true
+			if e.player then
+				local lead = e.player .. (e.joined and " " or ":  ")
+				segs[1] = { text = lead, color = chat.NameColor and chat.NameColor(e.player) or t.text, x = 0 }
+				offset = S.TextWidth(lead, TEXT_SIZE)
+			end
+			local line, lineW = "", 0
+			local function EndRow()
+				if line ~= "" then segs[#segs + 1] = { text = line, color = color, x = offset } end
+				rows[#rows + 1] = { stamp = first and Clock(e.gameTime) or nil, segs = segs }
+				first = false
+				segs, offset, line, lineW = {}, indent, "", 0
+			end
 			for word in (e.body or ""):gmatch("%S+") do
-				local gap = (words > 0) and " " or ""
-				if words > 0 and S.TextWidth(plain .. gap .. word, TEXT_SIZE) > bodyW then
-					rows[#rows + 1] = { stamp = first and Clock(e.gameTime) or nil, text = line }
-					first = false
-					line, plain, words = bodyCode .. "    " .. word, "    " .. word, 1
+				local w = S.TextWidth(word, TEXT_SIZE)
+				local gap = (line ~= "") and space or 0
+				if offset + lineW + gap + w <= bodyW then
+					line = (line ~= "") and (line .. " " .. word) or word
+					lineW = lineW + gap + w
+				elseif indent + w <= bodyW then
+					EndRow()
+					line, lineW = word, w
 				else
-					line, plain, words = line .. gap .. word, plain .. gap .. word, words + 1
+					-- wider than a whole line (a checksum, a path): cut it up
+					local room = bodyW - offset - lineW - gap
+					if room < bodyW * 0.25 then
+						EndRow()
+						room = bodyW - indent
+					end
+					local pieces = BreakWord(word, room, bodyW - indent)
+					for k = 1, #pieces do
+						line = (line ~= "") and (line .. " " .. pieces[k]) or pieces[k]
+						lineW = S.TextWidth(line, TEXT_SIZE)
+						if k < #pieces then EndRow() end
+					end
 				end
 			end
-			if words > 0 or e.player then
-				rows[#rows + 1] = { stamp = first and Clock(e.gameTime) or nil, text = line }
-			end
+			if line ~= "" or #segs > 0 then EndRow() end
 		end
 	end
 	builtCount, builtTab, builtWidth = #log, tab, width
@@ -171,7 +213,10 @@ function widget:DrawScreen()
 	for i = first, last do
 		local row = rows[i]
 		if row.stamp then S.Text(row.stamp, x1, ty, TEXT_SIZE, t.textDim, "v") end
-		S.Text(row.text, x1 + stampW, ty, TEXT_SIZE, t.text, "v")
+		for k = 1, #row.segs do
+			local seg = row.segs[k]
+			S.Text(seg.text, x1 + stampW + seg.x, ty, TEXT_SIZE, seg.color, "v")
+		end
 		ty = ty - lh
 	end
 	if #rows == 0 then
